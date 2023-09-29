@@ -14,6 +14,7 @@ The original Vega-Lite examples: <https://vega.github.io/vega-lite/examples/>
     - [x] [Scatterplot](examples/point_2d/)
   - Line Charts
     - [x] [Line Chart](examples/line/)
+    - [x] [Line Chart with Point Markers](examples/line_overlay/)
   - Area Charts & Streamgraphs
     - [x] [Area Chart](examples/area/)
   - Table-based Plots
