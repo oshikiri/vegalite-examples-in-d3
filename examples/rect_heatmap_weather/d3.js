@@ -1,6 +1,6 @@
 const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
 
-const margin = { top: 10, right: 50, bottom: 40, left: 45 };
+const margin = { top: 20, right: 50, bottom: 40, left: 45 };
 const width = 502 - margin.left - margin.right;
 const height = 215 - margin.top - margin.bottom;
 
@@ -11,6 +11,16 @@ const svg = d3
   .append("svg")
   .attr("width", width + margin.left + margin.right)
   .attr("height", height + margin.top + margin.bottom);
+
+svg
+  .append("text")
+  .attr("class", "axis-label")
+  .attr("font-size", 13)
+  .attr("font-weight", "bold")
+  .attr("text-anchor", "middle")
+  .attr("x", margin.left + width / 2)
+  .attr("y", margin.top * 0.5)
+  .text("Daily Max Temperatures (C) in Seattle, WA");
 
 svg
   .append("text")
@@ -28,7 +38,7 @@ svg
   .attr("font-weight", "bold")
   .attr("text-anchor", "middle")
   .attr("transform", "rotate(-90)")
-  .attr("x", -height / 2)
+  .attr("x", -margin.top - height / 2)
   .attr("y", margin.left / 3)
   .text("Month");
 
@@ -47,7 +57,6 @@ d3.csv("/data/seattle-weather.csv").then((data) => {
   const table = createDataset(data);
   console.log(table);
 
-  console.log(d3.extent(table, (d) => d.tempMax));
   colorScale.domain(d3.extent(table, (d) => d.tempMax));
 
   const plot = svg
@@ -57,7 +66,8 @@ d3.csv("/data/seattle-weather.csv").then((data) => {
   plot
     .append("g")
     .attr("transform", `translate(0, ${height})`)
-    .call(d3.axisBottom(xScale).tickSizeOuter(0));
+    .call(d3.axisBottom(xScale).tickSizeOuter(0))
+    .attr("stroke-width", 0);
 
   plot.append("g").call(d3.axisLeft(yScale).tickSizeOuter(0));
 
@@ -70,7 +80,36 @@ d3.csv("/data/seattle-weather.csv").then((data) => {
     .attr("y", (d) => yScale(months[d.month]))
     .attr("height", yScale.bandwidth())
     .attr("width", xScale.bandwidth())
+    .attr("stroke", (d) => colorScale(d.tempMax))
     .attr("fill", (d) => colorScale(d.tempMax));
+
+  const legend = svg
+    .append("g")
+    .attr("class", "legend")
+    .attr("transform", `translate(${margin.left + width + 10}, ${margin.top})`);
+  legend
+    .selectAll(".legend")
+    .data(d3.range(5, 37))
+    .enter()
+    .append("rect")
+    .attr("width", 15)
+    .attr("height", 5)
+    .attr("fill", (d) => colorScale(d))
+    .attr("transform", (d) => `translate(0, ${5 * (36 - d)})`);
+  legend
+    .append("text")
+    .attr("font-size", 10)
+    .attr("text-anchor", "left")
+    .attr("x", 20)
+    .attr("y", 10)
+    .text("36");
+  legend
+    .append("text")
+    .attr("font-size", 10)
+    .attr("text-anchor", "left")
+    .attr("x", 20)
+    .attr("y", 5 * (36 - 5))
+    .text("5");
 });
 
 function createDataset(data) {
