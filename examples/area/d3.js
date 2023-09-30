@@ -34,7 +34,7 @@ chart
   .attr("y", margin.left / 2)
   .text("count");
 
-d3.json("/data/unemployment-across-industries.json").then((data) => {
+d3.json("../../data/unemployment-across-industries.json").then((data) => {
   const aggregated = d3
     .rollups(
       data,
