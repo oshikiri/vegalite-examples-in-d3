@@ -1,5 +1,5 @@
 // https://observablehq.com/@d3/histogram/2?intent=fork
-d3.json("/data/movies.json").then((data) => {
+d3.json("../../data/movies.json").then((data) => {
   const width = 258;
   const height = 247;
   const marginTop = 20;

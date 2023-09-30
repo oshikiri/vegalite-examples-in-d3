@@ -41,7 +41,7 @@ const colorScale = d3.scaleOrdinal().range(colors);
 
 const stack = d3.stack().keys(keys);
 
-d3.csv("/data/seattle-weather.csv").then((data) => {
+d3.csv("../../data/seattle-weather.csv").then((data) => {
   xScale.domain(months);
   yScale.domain([0, 120]);
 

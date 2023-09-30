@@ -34,7 +34,7 @@ chart
   .attr("y", margin.left / 2)
   .text("price");
 
-d3.csv("/data/stocks.csv").then((data) => {
+d3.csv("../../data/stocks.csv").then((data) => {
   data = data
     .filter((d) => d.symbol == "GOOG")
     .map(function (d) {

@@ -39,7 +39,7 @@ const symbolScale = d3.scaleOrdinal().range(colors).domain(symbols);
 
 const parseDate = d3.timeParse("%b %d %Y");
 
-d3.csv("/data/stocks.csv").then((data) => {
+d3.csv("../../data/stocks.csv").then((data) => {
   data.forEach((d) => {
     d.date = parseDate(d.date);
     d.year = d.date.getFullYear();

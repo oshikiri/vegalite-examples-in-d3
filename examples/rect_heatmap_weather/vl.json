@@ -1,7 +1,7 @@
 {
   "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
   "data": {
-    "url": "/data/seattle-weather.csv"
+    "url": "../../data/seattle-weather.csv"
   },
   "title": "Daily Max Temperatures (C) in Seattle, WA",
   "config": {

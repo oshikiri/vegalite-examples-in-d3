@@ -48,7 +48,7 @@ const colorScale = d3.scaleSequential(d3.interpolateYlGnBu);
 
 const parseDate = d3.timeParse("%Y-%m-%d");
 
-d3.csv("/data/seattle-weather.csv").then((data) => {
+d3.csv("../../data/seattle-weather.csv").then((data) => {
   data.forEach((d) => {
     d.date = parseDate(d.date);
     d.temp_max = +d.temp_max;
