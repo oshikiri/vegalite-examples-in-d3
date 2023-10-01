@@ -41,7 +41,7 @@ svg
   .attr("y", -margin.left / 2)
   .text("Miles_per_Gallon");
 
-d3.json("/data/cars.json").then((data) => {
+d3.json("../../data/cars.json").then((data) => {
   svg
     .append("g")
     .selectAll("dot")
