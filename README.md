@@ -34,6 +34,6 @@ The original Vega-Lite examples: <https://vega.github.io/vega-lite/examples/>
 - Maps (Geographic Displays)
 - Interactive
   - Interactive Charts
-    - [ ] Histogram with Full-Height Hover Targets for Tooltip
+    - [ ] [Histogram with Full-Height Hover Targets for Tooltip](examples/interactive_histogram_full_height_hover/)
     - [ ] Scatterplot with External Links and Tooltips
   - Interactive Multi-View Displays

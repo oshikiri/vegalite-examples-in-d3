@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8" />
+
+  <script src="https://cdn.jsdelivr.net/npm/vega@5.25.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5.12.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6.22.1"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js"></script>
+</head>
+<body>
+  <!-- vega-lite -->
+  <div id="vegalite"></div>
+  <script>
+    vegaEmbed(`#vegalite`, `./vl.json`, { actions: false });
+  </script>
+
+  <!-- d3.js -->
+  <div id="graph-d3js"></div>
+  <style>
+    .tooltip {
+      box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
+      width: auto;
+      height: auto;
+      display: inline-block;
+      font-size: 11px;
+      padding: 10px;
+      position: absolute;
+      background-color: white;
+      visibility: hidden;
+    }
+    .tooltip-row {
+      display: block;
+    }
+    .tooltip-title {
+      color: grey;
+    }
+  </style>
+  <div class="tooltip">
+    <div class="tooltip-row">
+      <span class="tooltip-title">IMDB Rating (binned):</span>
+      <span class="data-rating"></span>
+    </div>
+    <div class="tooltip-row">
+      <span class="tooltip-title">Count of Records:</span>
+      <span class="data-count"></span>
+    </div>
+  </div>
+  <script src="d3.js"></script>
+</body>
