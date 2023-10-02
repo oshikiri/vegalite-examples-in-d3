@@ -12,31 +12,31 @@ const parseMonth = d3.timeParse("%Y-%m-%d");
 const svg = d3
   .select("#graph-d3js")
   .append("svg")
-  .attr("width", width + margin.left + margin.right)
-  .attr("height", height + margin.top + margin.bottom);
+  .attr("width", chartWidth + margin.left + margin.right)
+  .attr("height", chartHeight + margin.top + margin.bottom);
 
-svg
+root
   .append("text")
   .attr("class", "axis-label")
   .attr("font-size", 10)
   .attr("font-weight", "bold")
   .attr("text-anchor", "middle")
-  .attr("x", margin.left + width / 2)
-  .attr("y", margin.top + height + 0.75 * margin.bottom)
+  .attr("x", margin.left + chartWidth / 2)
+  .attr("y", margin.top + chartHeight + 0.75 * margin.bottom)
   .text("Month of the year");
 
-svg
+root
   .append("text")
   .attr("font-size", 10)
   .attr("font-weight", "bold")
   .attr("text-anchor", "middle")
   .attr("transform", "rotate(-90)")
-  .attr("x", -height / 2)
+  .attr("x", -chartHeight / 2)
   .attr("y", margin.left / 3)
   .text("Count of Records");
 
-const xScale = d3.scaleBand().range([0, width]).padding(0.1);
-const yScale = d3.scaleLinear().range([height, 0]);
+const xScale = d3.scaleBand().range([0, chartWidth]).padding(0.1);
+const yScale = d3.scaleLinear().range([chartHeight, 0]);
 const colorScale = d3.scaleOrdinal().range(colors);
 
 const stack = d3.stack().keys(keys);
@@ -48,7 +48,7 @@ d3.csv("../../data/seattle-weather.csv").then((data) => {
   const flatten = createDataset(data);
   const series = stack(flatten);
 
-  const bars = svg
+  const bars = root
     .append("g")
     .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
@@ -72,16 +72,16 @@ d3.csv("../../data/seattle-weather.csv").then((data) => {
   bars
     .append("g")
     .attr("class", "grid")
-    .attr("transform", `translate(0, ${height})`)
+    .attr("transform", `translate(0, ${chartHeight})`)
     .call(d3.axisBottom(xScale));
   bars.append("g").attr("class", "grid").call(d3.axisLeft(yScale).ticks(6));
 
   const squareSize = 10;
   const paddingSquares = 3;
   const legendPaddingLeft = 15;
-  const legend = svg
+  const legend = root
     .append("g")
-    .attr("transform", `translate(${margin.left + width}, 0)`);
+    .attr("transform", `translate(${margin.left + chartWidth}, 0)`);
   legend
     .selectAll("legend-square")
     .data(keys)

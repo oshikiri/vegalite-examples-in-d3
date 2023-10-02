@@ -1,23 +1,26 @@
-const width = 258;
-const height = 247;
+const rootWidth = 258;
+const rootHeight = 247;
 const margin = {
   top: 20,
   right: 0,
   bottom: 30,
   left: 50,
 };
+const chartWidth = rootWidth - margin.left - margin.right;
+const chartHeight = rootHeight - margin.top - margin.bottom;
 
-const svg = d3
+const root = d3
   .select("#graph-d3js")
   .append("svg")
-  .attr("width", width)
-  .attr("height", height)
-  .attr("viewBox", [0, 0, width, height]);
+  .attr("width", rootWidth)
+  .attr("height", rootHeight);
+const chart = root
+  .append("g")
+  .attr("transform", `translate(${margin.left}, ${margin.top})`);
+const xScale = d3.scaleLinear().range([0, chartWidth]);
+const yScale = d3.scaleLinear().range([chartHeight, 0]);
 
 const tooltip = d3.select(".tooltip");
-
-const xScale = d3.scaleLinear().range([margin.left, width - margin.right]);
-const yScale = d3.scaleLinear().range([height - margin.bottom, margin.top]);
 
 d3.json("../../data/movies.json").then((data) => {
   const bins = d3
@@ -28,19 +31,18 @@ d3.json("../../data/movies.json").then((data) => {
   xScale.domain([bins[0].x0, bins[bins.length - 1].x1]);
   yScale.domain([0, 1000]);
 
-  svg
-    .append("g")
+  const yGridLines = chart
     .selectAll("line")
     .data(yScale.ticks(5))
     .join("line")
-    .attr("x1", margin.left)
-    .attr("x2", width - margin.right)
+    .attr("x1", 0)
+    .attr("x2", chartWidth)
     .attr("y1", (d) => yScale(d))
     .attr("y2", (d) => yScale(d))
     .attr("stroke", "grey")
     .attr("stroke-opacity", "0.3");
 
-  const g = svg
+  const bars = chart
     .append("g")
     .selectAll("rect")
     .data(bins)
@@ -63,30 +65,24 @@ d3.json("../../data/movies.json").then((data) => {
       tooltip.style("visibility", "hidden");
     });
 
-  svg
+  const xAxis = chart
     .append("g")
-    .attr("transform", `translate(0, ${height - margin.bottom})`)
-    .call(
-      d3
-        .axisBottom(xScale)
-        .ticks(width / 80)
-        .tickSizeOuter(0)
-    )
+    .attr("transform", `translate(0, ${chartHeight})`)
+    .call(d3.axisBottom(xScale).ticks(5))
     .append("text")
-    .attr("x", margin.left + (width - margin.left) / 2)
-    .attr("y", margin.bottom - 4)
+    .attr("x", chartWidth / 2)
+    .attr("y", margin.bottom)
     .attr("fill", "currentColor")
     .attr("font-weight", "bold")
     .text("IMDB Rating (binned)");
 
-  svg
+  const yAxis = chart
     .append("g")
-    .attr("transform", `translate(${margin.left}, 0)`)
-    .call(d3.axisLeft(yScale).ticks(height / 40))
+    .call(d3.axisLeft(yScale).ticks(chartHeight / 40))
     .append("text")
-    .attr("x", -(height - margin.top - margin.bottom) / 2)
-    .attr("y", (-2 * margin.left) / 3)
-    .attr("font-size", 10)
+    .attr("x", -chartHeight / 2)
+    .attr("y", -0.7 * margin.left)
+    .attr("text-anchor", "middle")
     .attr("fill", "currentColor")
     .attr("font-weight", "bold")
     .attr("transform", `rotate(-90)`)
