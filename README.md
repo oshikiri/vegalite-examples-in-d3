@@ -36,5 +36,5 @@ The original Vega-Lite examples: <https://vega.github.io/vega-lite/examples/>
   - Interactive Charts
     - [x] [Histogram with Full-Height Hover Targets for Tooltip](examples/interactive_histogram_full_height_hover/)
     - [ ] Scatterplot with External Links and Tooltips
-    - [x] Multi Series Line Chart with Tooltip
+    - [x] [Multi Series Line Chart with Tooltip](examples/interactive_multi_line_pivot_tooltip/)
   - Interactive Multi-View Displays
