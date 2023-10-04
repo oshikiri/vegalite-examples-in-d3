@@ -4,12 +4,12 @@ const colors = ["#e7ba52", "#9467bd", "#1f77b4", "#c7c7c7", "#aec7e8"];
 const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
 
 const margin = { top: 10, right: 90, bottom: 40, left: 45 };
-const width = 380 - margin.left - margin.right;
-const height = 242 - margin.top - margin.bottom;
+const chartWidth = 380 - margin.left - margin.right;
+const chartHeight = 242 - margin.top - margin.bottom;
 
 const parseMonth = d3.timeParse("%Y-%m-%d");
 
-const svg = d3
+const root = d3
   .select("#graph-d3js")
   .append("svg")
   .attr("width", chartWidth + margin.left + margin.right)
