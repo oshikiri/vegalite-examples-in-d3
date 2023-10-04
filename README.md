@@ -18,7 +18,7 @@ The original Vega-Lite examples: <https://vega.github.io/vega-lite/examples/>
   - Area Charts & Streamgraphs
     - [x] [Area Chart](examples/area/)
   - Table-based Plots
-    - [ ] Table Heatmap
+    - [x] [Table Heatmap](examples/rect_heatmap/)
     - [x] [Annual Weather Heatmap](examples/rect_heatmap_weather/)
   - Circular Plots
   - Advanced Calculations

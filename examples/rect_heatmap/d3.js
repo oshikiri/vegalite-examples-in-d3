@@ -1,38 +1,58 @@
-const margin = { top: 10, right: 130, bottom: 40, left: 60 };
-const width = 296 - margin.left - margin.right;
-const height = 103 - margin.top - margin.bottom;
+const rootWidth = 296;
+const rootHeight = 103;
+const margin = { top: 10, right: 130, bottom: 30, left: 60 };
+const width = rootWidth - margin.left - margin.right;
+const height = rootHeight - margin.top - margin.bottom;
 
 const parseYearMonth = d3.timeParse("%Y-%m");
+
+const xDomain = [3, 4, 5, 6, 8];
+const yDomain = ["USA", "Japan", "Europe"];
+
+const xScale = d3.scaleBand().domain(xDomain).range([0, width]);
+const yScale = d3.scaleBand().domain(yDomain).range([height, 0]);
+const colorScale = d3.scaleSequential(d3.interpolateYlGnBu);
 
 const chart = d3
   .select("#graph-d3js")
   .append("svg")
-  .attr("width", width + margin.left + margin.right)
-  .attr("height", height + margin.top + margin.bottom);
+  .attr("width", rootWidth)
+  .attr("height", rootHeight);
 
 const svg = chart
   .append("g")
   .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-chart
+const xTitle = chart
   .append("text")
   .attr("class", "axis-label")
   .attr("font-size", 10)
   .attr("font-weight", "bold")
-  .attr("text-anchor", "end")
+  .attr("text-anchor", "middle")
   .attr("x", margin.left + width / 2)
-  .attr("y", margin.top + height + margin.bottom / 2)
+  .attr("y", margin.top + height + 0.9 * margin.bottom)
   .text("Cylinders");
 
-chart
+const yTitle = chart
   .append("text")
   .attr("font-size", 10)
   .attr("font-weight", "bold")
-  .attr("text-anchor", "end")
+  .attr("text-anchor", "middle")
   .attr("transform", "rotate(-90)")
-  .attr("x", -height / 2)
+  .attr("x", -margin.top - height / 2)
   .attr("y", margin.left / 4)
   .text("Origin");
+
+const xTicks = svg
+  .append("g")
+  .attr("class", "grid")
+  .attr("transform", `translate(0, ${height})`)
+  .call(d3.axisBottom(xScale).ticks(5));
+
+const yTicks = svg
+  .append("g")
+  .attr("class", "grid")
+  .call(d3.axisLeft(yScale).ticks(5));
 
 d3.json("/data/cars.json").then((data) => {
   const table = d3.rollups(
@@ -41,34 +61,12 @@ d3.json("/data/cars.json").then((data) => {
     (d) => d.Origin,
     (d) => d.Cylinders
   );
-  const xScale = d3.scaleLinear().domain([3, 9]).range([0, width]);
-  svg
-    .append("g")
-    .attr("class", "grid")
-    .attr("transform", `translate(0, ${height})`)
-    .call(d3.axisBottom(xScale).ticks(5).tickSize(-height));
-
-  const yScale = d3
-    .scaleBand()
-    .domain(
-      data
-        .map((d) => d.Origin)
-        .sort()
-        .reverse()
-    )
-    .range([height, 0]);
-  svg
-    .append("g")
-    .attr("class", "grid")
-    .call(d3.axisLeft(yScale).ticks(5).tickSize(-width));
 
   const horsepowers = [].concat(
     ...table.map((row) => row[1].map((col) => col[1]))
   );
 
-  const colorScale = d3
-    .scaleSequential((t) => d3.interpolate("lightgreen", "midnightblue")(t))
-    .domain(d3.extent(horsepowers));
+  colorScale.domain(d3.extent(horsepowers));
 
   svg
     .selectAll(".row")
@@ -83,26 +81,53 @@ d3.json("/data/cars.json").then((data) => {
     .append("rect")
     .attr("class", "cell")
     .attr("x", ([cylinder]) => xScale(cylinder))
-    .attr("width", xScale(1) - xScale(0))
+    .attr("width", xScale.bandwidth())
     .attr("height", yScale.bandwidth())
     .attr("opacity", 0.9)
     .attr("fill", ([, horsepower]) => colorScale(horsepower));
 
-  const colorY = (hp) => height - (hp - 70) / 2;
+  const legendWidth = 15;
+  const colorY = (hp) => 0.75 * (hp - 76);
+  const toLegendY = (hp) => margin.top + height - colorY(hp);
   const legend = chart
     .append("g")
     .attr("class", "legend")
+    .attr("transform", `translate(${margin.left + width + 10}, ${margin.top})`);
+
+  legend
+    .append("text")
+    .attr("font-size", 10)
+    .attr("font-weight", "bold")
+    .attr("text-anchor", "left")
+    .attr("x", 0)
+    .attr("y", 5)
+    .text("Mean of Hoursepower");
+
+  legend
     .selectAll(".legend")
-    .data(d3.ticks(70, 160, 10))
+    .data(d3.range(76, 158, 5))
     .enter()
     .append("rect")
-    .attr("width", 15)
+    .attr("width", legendWidth)
     .attr("height", 5)
     .attr("fill", (hp) => colorScale(hp))
-    .attr(
-      "transform",
-      (hp) => `translate(${margin.left + width + 10}, ${colorY(hp)})`
-    );
+    .attr("transform", (hp) => `translate(0, ${toLegendY(hp)})`);
 
-  console.log(legend);
+  legend
+    .append("text")
+    .attr("font-size", 10)
+    .attr("text-anchor", "left")
+    .attr("dominant-baseline", "text-top")
+    .attr("x", legendWidth + 5)
+    .attr("y", toLegendY(76))
+    .text("76");
+
+  legend
+    .append("text")
+    .attr("font-size", 10)
+    .attr("text-anchor", "top")
+    .attr("dominant-baseline", "hanging")
+    .attr("x", legendWidth + 5)
+    .attr("y", toLegendY(158))
+    .text("158");
 });
