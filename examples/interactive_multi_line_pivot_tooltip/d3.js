@@ -8,6 +8,7 @@ const height = 347 - margin.top - margin.bottom;
 const parseMonth = d3.timeParse("%Y-%m-%d");
 
 const tooltip = d3.select(".tooltip");
+const indicator = d3.select(".indicator");
 
 const svg = d3
   .select("#graph-d3js")
@@ -77,17 +78,20 @@ d3.csv("../../data/stocks.csv").then((data) => {
   svg
     .on("mouseover", (el, d) => {
       tooltip.style("visibility", "visible");
+      indicator.style("visibility", "visible");
     })
     .on("mouseout", (el) => {
       const xPoint = xScale.invert(el.offsetX - margin.left);
       const [xmin, xmax] = xScale.domain();
 
-      const yPoint = xScale.invert(el.offsetY - margin.top);
+      const yPoint = yScale.invert(el.offsetY - margin.top);
       const [ymin, ymax] = yScale.domain();
 
-      if (xmin <= xPoint <= xmax && ymin <= yPoint <= ymax) return;
+      if (xmin <= xPoint && xPoint <= xmax && ymin <= yPoint && yPoint <= ymax)
+        return;
 
       tooltip.style("visibility", "hidden");
+      indicator.style("visibility", "hidden");
     })
     .on("mousemove", (el) => {
       console.log("mousemove", el.pageX, el.pageY);
@@ -95,7 +99,8 @@ d3.csv("../../data/stocks.csv").then((data) => {
       tooltip.style("top", `${el.pageY + 20}px`);
       tooltip.style("left", `${el.pageX + 20}px`);
 
-      const xPoint = xScale.invert(el.offsetX - margin.left);
+      const xCurrent = el.offsetX - margin.left;
+      const xPoint = xScale.invert(xCurrent);
       xPoint.setDate(1);
       xPoint.setHours(0);
       xPoint.setMinutes(0);
@@ -103,6 +108,8 @@ d3.csv("../../data/stocks.csv").then((data) => {
 
       const xData = dataByDate[xPoint];
       updateTooltip(xData);
+
+      updateIndicator(xCurrent, xScale);
     });
 
   const chart = svg
@@ -138,7 +145,6 @@ d3.csv("../../data/stocks.csv").then((data) => {
     .y(([y, p]) => yScale(p));
 
   table.forEach(([symbol, data]) => {
-    console.log(data);
     const perSymbol = chart.append("g");
 
     perSymbol
@@ -149,6 +155,19 @@ d3.csv("../../data/stocks.csv").then((data) => {
       .style("stroke", symbolScale(symbol))
       .style("stroke-width", 2);
   });
+
+  const xIndicator = 100;
+  const [ymin, ymax] = yScale.range();
+  const indicator = chart
+    .append("line")
+    .attr("class", "indicator")
+    .attr("x1", xIndicator)
+    .attr("x2", xIndicator)
+    .attr("y1", ymin)
+    .attr("y2", ymax)
+    .attr("stroke", "grey")
+    .attr("stroke-opacity", "0.8")
+    .style("visibility", "hidden");
 
   const squareSize = 10;
   const paddingSquares = 3;
@@ -192,9 +211,16 @@ d3.csv("../../data/stocks.csv").then((data) => {
 function updateTooltip(data) {
   if (!data) return;
 
-  console.log(data);
   for (const k in data) {
     const selector = `#price-${k.toLowerCase()}`;
     d3.select(selector).text(data[k]);
+  }
+}
+
+function updateIndicator(x, xScale) {
+  const indicator = d3.select(".indicator");
+  const [xmin, xmax] = xScale.range();
+  if (xmin <= x && x <= xmax) {
+    indicator.attr("x1", x).attr("x2", x);
   }
 }
