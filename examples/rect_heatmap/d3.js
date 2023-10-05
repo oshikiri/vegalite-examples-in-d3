@@ -54,7 +54,7 @@ const yTicks = svg
   .attr("class", "grid")
   .call(d3.axisLeft(yScale).ticks(5));
 
-d3.json("/data/cars.json").then((data) => {
+d3.json("../../data/cars.json").then((data) => {
   const table = d3.rollups(
     data,
     (g) => d3.mean(g, (d) => d.Horsepower),
