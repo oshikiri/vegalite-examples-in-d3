@@ -19,13 +19,13 @@ const chart = svg
 
 appendAxisLabel(svg)
   .attr("x", margin.left + width / 2)
-  .attr("y", margin.top + height + margin.bottom / 2)
-  .text("date");
+  .attr("y", margin.top + height + 0.8 * margin.bottom)
+  .text("date (year-month)");
 
 appendAxisLabel(svg)
   .attr("transform", "rotate(-90)")
-  .attr("x", -height / 2)
-  .attr("y", margin.left / 2)
+  .attr("x", -margin.top - height / 2)
+  .attr("y", 0.3 * margin.left)
   .text("count");
 
 const xScale = d3.scaleTime().range([0, width]);
@@ -54,15 +54,15 @@ function appendAxisLabel(svg) {
     .attr("class", "axis-label")
     .attr("font-size", 10)
     .attr("font-weight", "bold")
-    .attr("text-anchor", "end");
+    .attr("text-anchor", "middle");
 }
 
 function appendYAxis(chart) {
-  return chart
+  const axis = chart.append("g").attr("transform", `translate(0, ${height})`);
+  axis
     .append("g")
-    .attr("class", "grid")
-    .attr("transform", `translate(0, ${height})`)
-    .call(d3.axisBottom(xScale).ticks(5).tickSize(-height));
+    .call(d3.axisBottom(xScale).ticks(10).tickSize(-height).tickFormat(""));
+  axis.append("g").call(d3.axisBottom(xScale).ticks(5));
 }
 
 function appendXAxis(chart) {
