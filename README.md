@@ -20,7 +20,7 @@ The original Vega-Lite examples: <https://vega.github.io/vega-lite/examples/>
   - Table-based Plots
     - [x] [Table Heatmap](examples/rect_heatmap/)
     - [x] [Annual Weather Heatmap](examples/rect_heatmap_weather/)
-    - [ ] 2D Histogram Heatmap
+    - [x] [2D Histogram Heatmap](examples/rect_binned_heatmap/)
     - [x] [Table Bubble Plot (Github Punch Card)](examples/circle_github_punchcard/)
   - Circular Plots
   - Advanced Calculations
