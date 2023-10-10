@@ -1,68 +1,73 @@
+const svgWidth = 229;
+const svgHeight = 252;
+
 const margin = { top: 15, right: 20, bottom: 35, left: 40 };
-const width = 229 - margin.left - margin.right;
-const height = 252 - margin.top - margin.bottom;
+const width = svgWidth - margin.left - margin.right;
+const height = svgHeight - margin.top - margin.bottom;
 
-const x = d3.scaleBand().range([0, width]).padding(0.1);
-const y = d3.scaleLinear().range([height, 0]);
+const xScale = d3.scaleBand().range([0, width]).padding(0.1);
+const yScale = d3.scaleLinear().range([height, 0]);
 
-const svg = d3
+const chart = d3
   .select("#graph-d3js")
   .append("svg")
-  .attr("width", width + margin.left + margin.right)
-  .attr("height", height + margin.top + margin.bottom)
+  .attr("width", svgWidth)
+  .attr("height", svgHeight)
   .append("g")
   .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
+chart
+  .append("text")
+  .attr("class", "x-label")
+  .attr("font-size", 10)
+  .attr("font-weight", "bold")
+  .attr("text-anchor", "end")
+  .attr("x", width / 2)
+  .attr("y", height + margin.top + 15)
+  .text("a");
+chart
+  .append("text")
+  .attr("class", "y-label")
+  .attr("font-size", 10)
+  .attr("font-weight", "bold")
+  .attr("text-anchor", "end")
+  .attr("transform", "rotate(-90)")
+  .attr("x", -height / 2)
+  .attr("y", -0.7 * margin.left)
+  .text("b");
+chart
+  .append("g")
+  .attr("class", "grid")
+  .call(d3.axisLeft(yScale).ticks(5).tickSize(-width).tickFormat(""))
+  .call((g) =>
+    g
+      .selectAll(".tick line")
+      .attr("stroke", "grey")
+      .attr("stroke-opacity", "0.5")
+  );
+
 d3.json("data.json").then((data) => {
-  x.domain(data.map((d) => d.a));
-  y.domain([0, 100]);
+  xScale.domain(data.map((d) => d.a));
+  yScale.domain([0, 100]);
 
-  svg
+  chart
     .append("g")
-    .attr("class", "grid")
-    .call(d3.axisLeft(y).ticks(5).tickSize(-width).tickFormat(""))
-    .call((g) =>
-      g
-        .selectAll(".tick line")
-        .attr("stroke", "grey")
-        .attr("stroke-opacity", "0.7")
-    );
-
-  svg
+    .attr("class", "bars")
     .selectAll(".bar")
     .data(data)
     .enter()
     .append("rect")
     .attr("fill", "steelblue")
     .attr("class", "bar")
-    .attr("x", (d) => x(d.a))
-    .attr("y", (d) => y(d.b))
-    .attr("width", x.bandwidth())
-    .attr("height", (d) => height - y(d.b));
+    .attr("x", (d) => xScale(d.a))
+    .attr("y", (d) => yScale(d.b))
+    .attr("width", xScale.bandwidth())
+    .attr("height", (d) => height - yScale(d.b));
 
-  // axis ticks
-  svg
+  chart
     .append("g")
+    .attr("class", "x-axis")
     .attr("transform", `translate(0, ${height})`)
-    .call(d3.axisBottom(x));
-  svg.append("g").call(d3.axisLeft(y).ticks(5));
-
-  // axis label
-  svg
-    .append("text")
-    .attr("font-size", 10)
-    .attr("font-weight", "bold")
-    .attr("text-anchor", "end")
-    .attr("x", width / 2)
-    .attr("y", height + margin.top + 15)
-    .text("a");
-  svg
-    .append("text")
-    .attr("font-size", 10)
-    .attr("font-weight", "bold")
-    .attr("text-anchor", "end")
-    .attr("transform", "rotate(-90)")
-    .attr("x", -height / 2 - 10)
-    .attr("y", -margin.left / 2 - 10)
-    .text("b");
+    .call(d3.axisBottom(xScale));
+  chart.append("g").attr("class", "y-axis").call(d3.axisLeft(yScale).ticks(5));
 });
