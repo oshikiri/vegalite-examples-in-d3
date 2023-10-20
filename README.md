@@ -1,6 +1,7 @@
 # Rewrite vega-lite examples in D3
 
-The original Vega-Lite examples: <https://vega.github.io/vega-lite/examples/>
+- Repository: <https://github.com/oshikiri/vegalite-examples-in-d3>
+- The original Vega-Lite examples: <https://vega.github.io/vega-lite/examples/>
 
 ## Examples
 
