@@ -8,6 +8,7 @@ The original Vega-Lite examples: <https://vega.github.io/vega-lite/examples/>
   - Bar Charts
     - [x] [Simple Bar Chart](examples/bar/)
     - [x] [Stacked Bar Chart](examples/stacked_bar_weather/)
+    - [x] [Gantt Chart (Ranged Bar Marks)](examples/bar_gantt/)
   - Histograms, Density Plots, and Dot Plots
     - [x] [Histogram](examples/histogram/)
   - Scatter & Strip Plots
