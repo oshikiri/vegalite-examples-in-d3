@@ -1,30 +1,23 @@
 async function main() {
-  const keys = ["sun", "snow", "rain", "fog", "drizzle"];
-  const colors = ["#e7ba52", "#9467bd", "#1f77b4", "#c7c7c7", "#aec7e8"];
-
-  const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
-
   const plotter = new Plotter({
     root: { width: 380, height: 242 },
     margin: { top: 10, right: 90, bottom: 40, left: 45 },
   });
-  const root = plotter.initializeRoot();
-  plotter.keys = keys;
+  plotter.keys = ["sun", "snow", "rain", "fog", "drizzle"];
 
-  plotter.appendLabels(root);
+  const data = await plotter.fetchData("../../data/seattle-weather.csv");
 
-  const data = await d3.csv("../../data/seattle-weather.csv");
-  const flatten = plotter.createDataset(data);
-  const series = d3.stack().keys(keys)(flatten);
-
+  const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
   plotter.scale.x.domain(months).range([0, plotter.chartWidth]).padding(0.1);
   plotter.scale.y.domain([0, 120]).range([plotter.chartHeight, 0]);
+  const colors = ["#e7ba52", "#9467bd", "#1f77b4", "#c7c7c7", "#aec7e8"];
   plotter.scale.color.range(colors);
 
-  const bars = plotter.appendBars(root, series);
-  plotter.appendGrids(bars);
-
+  const root = plotter.initializeRoot();
+  plotter.appendLabels(root);
   plotter.appendLegends(root);
+  const bars = plotter.appendBars(root, data);
+  plotter.appendGrids(bars);
 }
 
 class Plotter {
@@ -42,6 +35,13 @@ class Plotter {
       y: d3.scaleLinear(),
       color: d3.scaleOrdinal(),
     };
+  }
+
+  async fetchData(url) {
+    const data = await d3.csv(url);
+    const flatten = this.createDataset(data);
+    const series = d3.stack().keys(this.keys)(flatten);
+    return series;
   }
 
   initializeRoot() {
