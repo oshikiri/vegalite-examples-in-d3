@@ -12,7 +12,6 @@ async function main() {
   plotter.keys = keys;
 
   plotter.appendLabels(root);
-  plotter.appendLegends(root);
 
   const data = await d3.csv("../../data/seattle-weather.csv");
   const flatten = plotter.createDataset(data);
@@ -24,6 +23,7 @@ async function main() {
 
   const bars = plotter.appendBars(root, series);
   plotter.appendGrids(bars);
+  plotter.appendLegends(root);
 }
 
 class Plotter {
@@ -41,15 +41,11 @@ class Plotter {
   }
 
   initializeRoot() {
-    const margin = this.margin;
-    const chartWidth = this.chartWidth;
-    const chartHeight = this.chartHeight;
-
     const root = d3
       .select("#graph-d3js")
       .append("svg")
-      .attr("width", chartWidth + margin.left + margin.right)
-      .attr("height", chartHeight + margin.top + margin.bottom);
+      .attr("width", this.rootSize.width)
+      .attr("height", this.rootSize.height);
     return root;
   }
 
