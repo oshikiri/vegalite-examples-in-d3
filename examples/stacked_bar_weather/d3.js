@@ -4,10 +4,10 @@ async function main() {
 
   const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
 
-  const plotter = new Plotter(
-    { width: 380, height: 242 },
-    { top: 10, right: 90, bottom: 40, left: 45 }
-  );
+  const plotter = new Plotter({
+    root: { width: 380, height: 242 },
+    margin: { top: 10, right: 90, bottom: 40, left: 45 },
+  });
   const root = plotter.initializeRoot();
   plotter.keys = keys;
 
@@ -23,11 +23,15 @@ async function main() {
 
   const bars = plotter.appendBars(root, series);
   plotter.appendGrids(bars);
+
   plotter.appendLegends(root);
 }
 
 class Plotter {
-  constructor(rootSize, margin) {
+  constructor(size) {
+    const margin = size.margin;
+    const rootSize = size.root;
+
     this.margin = margin;
     this.rootSize = rootSize;
     this.chartWidth = rootSize.width - margin.left - margin.right;
