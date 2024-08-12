@@ -1,55 +1,91 @@
-main();
-
-function main() {
+async function main() {
   const keys = ["sun", "snow", "rain", "fog", "drizzle"];
   const colors = ["#e7ba52", "#9467bd", "#1f77b4", "#c7c7c7", "#aec7e8"];
 
   const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
 
-  const margin = { top: 10, right: 90, bottom: 40, left: 45 };
-  const chartWidth = 380 - margin.left - margin.right;
-  const chartHeight = 242 - margin.top - margin.bottom;
+  const plotter = new Plotter(
+    { width: 380, height: 242 },
+    { top: 10, right: 90, bottom: 40, left: 45 }
+  );
+  const root = plotter.initializeRoot();
+  plotter.keys = keys;
 
-  const parseMonth = d3.timeParse("%Y-%m-%d");
+  plotter.appendLabels(root);
+  plotter.appendLegends(root);
 
-  const root = d3
-    .select("#graph-d3js")
-    .append("svg")
-    .attr("width", chartWidth + margin.left + margin.right)
-    .attr("height", chartHeight + margin.top + margin.bottom);
+  const data = await d3.csv("../../data/seattle-weather.csv");
+  const flatten = plotter.createDataset(data);
+  const series = d3.stack().keys(keys)(flatten);
 
-  root
-    .append("text")
-    .attr("class", "axis-label")
-    .attr("font-size", 10)
-    .attr("font-weight", "bold")
-    .attr("text-anchor", "middle")
-    .attr("x", margin.left + chartWidth / 2)
-    .attr("y", margin.top + chartHeight + 0.75 * margin.bottom)
-    .text("Month of the year");
+  plotter.scale.x.domain(months).range([0, plotter.chartWidth]).padding(0.1);
+  plotter.scale.y.domain([0, 120]).range([plotter.chartHeight, 0]);
+  plotter.scale.color.range(colors);
 
-  root
-    .append("text")
-    .attr("font-size", 10)
-    .attr("font-weight", "bold")
-    .attr("text-anchor", "middle")
-    .attr("transform", "rotate(-90)")
-    .attr("x", -chartHeight / 2)
-    .attr("y", margin.left / 3)
-    .text("Count of Records");
+  const bars = plotter.appendBars(root, series);
+  plotter.appendGrids(bars);
+}
 
-  const xScale = d3.scaleBand().range([0, chartWidth]).padding(0.1);
-  const yScale = d3.scaleLinear().range([chartHeight, 0]);
-  const colorScale = d3.scaleOrdinal().range(colors);
+class Plotter {
+  constructor(rootSize, margin) {
+    this.margin = margin;
+    this.rootSize = rootSize;
+    this.chartWidth = rootSize.width - margin.left - margin.right;
+    this.chartHeight = rootSize.height - margin.top - margin.bottom;
 
-  const stack = d3.stack().keys(keys);
+    this.scale = {
+      x: d3.scaleBand(),
+      y: d3.scaleLinear(),
+      color: d3.scaleOrdinal(),
+    };
+  }
 
-  d3.csv("../../data/seattle-weather.csv").then((data) => {
-    xScale.domain(months);
-    yScale.domain([0, 120]);
+  initializeRoot() {
+    const margin = this.margin;
+    const chartWidth = this.chartWidth;
+    const chartHeight = this.chartHeight;
 
-    const flatten = createDataset(data);
-    const series = stack(flatten);
+    const root = d3
+      .select("#graph-d3js")
+      .append("svg")
+      .attr("width", chartWidth + margin.left + margin.right)
+      .attr("height", chartHeight + margin.top + margin.bottom);
+    return root;
+  }
+
+  appendLabels(root) {
+    const margin = this.margin;
+    const chartWidth = this.chartWidth;
+    const chartHeight = this.chartHeight;
+
+    const xlabel = root
+      .append("text")
+      .attr("class", "axis-label")
+      .attr("font-size", 10)
+      .attr("font-weight", "bold")
+      .attr("text-anchor", "middle")
+      .attr("x", margin.left + chartWidth / 2)
+      .attr("y", margin.top + chartHeight + 0.75 * margin.bottom)
+      .text("Month of the year");
+
+    const ylabel = root
+      .append("text")
+      .attr("font-size", 10)
+      .attr("font-weight", "bold")
+      .attr("text-anchor", "middle")
+      .attr("transform", "rotate(-90)")
+      .attr("x", -chartHeight / 2)
+      .attr("y", margin.left / 3)
+      .text("Count of Records");
+
+    return { x: xlabel, y: ylabel };
+  }
+
+  appendBars(root, series) {
+    const margin = this.margin;
+    const xScale = this.scale.x;
+    const yScale = this.scale.y;
+    const colorScale = this.scale.color;
 
     const bars = root
       .append("g")
@@ -67,10 +103,18 @@ function main() {
       .data((d) => d)
       .enter()
       .append("rect")
-      .attr("x", (_d, i) => xScale(months[i]))
+      .attr("x", (_d, i) => xScale(xScale.domain()[i]))
       .attr("y", (d) => yScale(d[1]))
       .attr("height", (d) => yScale(d[0]) - yScale(d[1]))
       .attr("width", xScale.bandwidth());
+
+    return bars;
+  }
+
+  appendGrids(bars) {
+    const chartHeight = this.chartHeight;
+    const xScale = this.scale.x;
+    const yScale = this.scale.y;
 
     bars
       .append("g")
@@ -78,6 +122,11 @@ function main() {
       .attr("transform", `translate(0, ${chartHeight})`)
       .call(d3.axisBottom(xScale));
     bars.append("g").attr("class", "grid").call(d3.axisLeft(yScale).ticks(6));
+  }
+
+  appendLegends(root) {
+    const margin = this.margin;
+    const chartWidth = this.chartWidth;
 
     const squareSize = 10;
     const paddingSquares = 3;
@@ -87,7 +136,7 @@ function main() {
       .attr("transform", `translate(${margin.left + chartWidth}, 0)`);
     legend
       .selectAll("legend-square")
-      .data(keys)
+      .data(this.keys)
       .enter()
       .append("rect")
       .attr("x", margin.right / 5)
@@ -97,10 +146,10 @@ function main() {
       )
       .attr("width", squareSize)
       .attr("height", squareSize)
-      .style("fill", (d, i) => colors[i]);
+      .style("fill", (d, i) => this.scale.color.range()[i]);
     legend
       .selectAll("legend-labels")
-      .data(keys)
+      .data(this.keys)
       .enter()
       .append("text")
       .attr("x", 20 + squareSize * 1.2)
@@ -108,7 +157,7 @@ function main() {
         "y",
         (d, i) => legendPaddingLeft + i * (squareSize + paddingSquares) + 3
       )
-      .text((d, i) => keys[i])
+      .text((d, i) => this.keys[i])
       .attr("text-anchor", "left")
       .attr("font-size", squareSize)
       .style("alignment-baseline", "central");
@@ -121,9 +170,13 @@ function main() {
       .attr("x", legendPaddingLeft)
       .attr("y", 10)
       .text("Weather type");
-  });
 
-  function createDataset(data) {
+    return legend;
+  }
+
+  createDataset(data) {
+    const parseMonth = d3.timeParse("%Y-%m-%d");
+
     const counts = d3.rollups(
       data,
       (g) => g.length,
@@ -131,8 +184,8 @@ function main() {
       (d) => d.weather
     );
     const flatten = counts.map(([m, weathers], i) => {
-      const r = { month: months[m] };
-      for (const k of keys) {
+      const r = { month: this.scale.x.domain()[m] };
+      for (const k of this.keys) {
         r[k] = 0;
       }
       for (const [w, count] of weathers) {
@@ -143,3 +196,5 @@ function main() {
     return flatten;
   }
 }
+
+main();
