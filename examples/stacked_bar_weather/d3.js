@@ -7,7 +7,7 @@ async function main() {
 
   const data = await plotter.fetchData("../../data/seattle-weather.csv");
 
-  const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+  const months = d3.range(12);
   plotter.scale.x.domain(months).range([0, plotter.chartWidth]).padding(0.1);
   plotter.scale.y.domain([0, 120]).range([plotter.chartHeight, 0]);
   const colors = ["#e7ba52", "#9467bd", "#1f77b4", "#c7c7c7", "#aec7e8"];
@@ -39,9 +39,14 @@ class Plotter {
 
   async fetchData(url) {
     const data = await d3.csv(url);
-    const flatten = this.createDataset(data);
-    const series = d3.stack().keys(this.keys)(flatten);
-    return series;
+    const parseMonth = d3.timeParse("%Y-%m-%d");
+    const counts = d3.rollups(
+      data,
+      (g) => g.length,
+      (d) => parseMonth(d.date).getMonth(),
+      (d) => d.weather
+    );
+    return counts;
   }
 
   initializeRoot() {
@@ -81,34 +86,43 @@ class Plotter {
     return { x: xlabel, y: ylabel };
   }
 
-  appendBars(root, series) {
+  appendBars(root, counts) {
     const margin = this.margin;
-    const xScale = this.scale.x;
-    const yScale = this.scale.y;
-    const colorScale = this.scale.color;
-
     const bars = root
       .append("g")
       .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-    const svgGroups = bars
-      .selectAll("g")
-      .data(series)
-      .enter()
-      .append("g")
-      .style("fill", (d, i) => colorScale(i));
-
-    svgGroups
-      .selectAll("rect")
-      .data((d) => d)
-      .enter()
-      .append("rect")
-      .attr("x", (_d, i) => xScale(xScale.domain()[i]))
-      .attr("y", (d) => yScale(d[1]))
-      .attr("height", (d) => yScale(d[0]) - yScale(d[1]))
-      .attr("width", xScale.bandwidth());
+    counts.forEach(([month, d]) => {
+      this.appendBarGroup(bars, month, d);
+    });
 
     return bars;
+  }
+
+  appendBarGroup(bars, month, d) {
+    d = this.appendCumsum(d.sort().reverse());
+
+    const scale = this.scale;
+    const barGroup = bars.append("g").attr("class", "bar-column");
+    barGroup
+      .selectAll("rect")
+      .data(d)
+      .enter()
+      .append("rect")
+      .attr("fill", (d) => scale.color(d.weather))
+      .attr("x", scale.x(month))
+      .attr("y", (d) => scale.y(d.cumsum))
+      .attr("height", (d) => this.chartHeight - scale.y(d.count))
+      .attr("width", scale.x.bandwidth());
+    return barGroup;
+  }
+
+  appendCumsum(d) {
+    let cumsum = 0;
+    return d.map(([weather, count]) => {
+      cumsum += count;
+      return { weather, count, cumsum };
+    });
   }
 
   appendGrids(bars) {
@@ -116,11 +130,12 @@ class Plotter {
     const xScale = this.scale.x;
     const yScale = this.scale.y;
 
+    const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
     bars
       .append("g")
       .attr("class", "grid")
       .attr("transform", `translate(0, ${chartHeight})`)
-      .call(d3.axisBottom(xScale));
+      .call(d3.axisBottom(xScale).tickFormat((i) => months[i]));
     bars.append("g").attr("class", "grid").call(d3.axisLeft(yScale).ticks(6));
   }
 
@@ -172,28 +187,6 @@ class Plotter {
       .text("Weather type");
 
     return legend;
-  }
-
-  createDataset(data) {
-    const parseMonth = d3.timeParse("%Y-%m-%d");
-
-    const counts = d3.rollups(
-      data,
-      (g) => g.length,
-      (d) => parseMonth(d.date).getMonth(),
-      (d) => d.weather
-    );
-    const flatten = counts.map(([m, weathers], i) => {
-      const r = { month: this.scale.x.domain()[m] };
-      for (const k of this.keys) {
-        r[k] = 0;
-      }
-      for (const [w, count] of weathers) {
-        r[w] = count;
-      }
-      return r;
-    });
-    return flatten;
   }
 }
 
