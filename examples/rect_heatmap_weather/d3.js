@@ -1,37 +1,43 @@
-const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+main();
 
-const margin = { top: 20, right: 50, bottom: 40, left: 45 };
-const width = 502 - margin.left - margin.right;
-const height = 215 - margin.top - margin.bottom;
+async function main() {
+  const size = {
+    svg: {
+      width: 502,
+      height: 215,
+    },
+    margin: { top: 20, right: 50, bottom: 40, left: 45 },
+    chart: {},
+  };
+  size.chart.width = size.svg.width - size.margin.left - size.margin.right;
+  size.chart.height = size.svg.height - size.margin.top - size.margin.bottom;
 
-const parseMonth = d3.timeParse("%Y-%m-%d");
+  const scale = {
+    x: d3.scaleBand().range([0, size.chart.width]).domain(d3.range(1, 32)),
+    y: d3.scaleBand().range([0, size.chart.height]).domain(d3.range(0, 12)),
+    color: d3.scaleSequential(d3.interpolateYlGnBu),
+  };
 
-const svg = createSvg(width, height, margin);
-const xScale = d3.scaleBand().range([0, width]).domain(d3.range(1, 32));
-const yScale = d3.scaleBand().range([0, height]).domain(months);
-const colorScale = d3.scaleSequential(d3.interpolateYlGnBu);
-
-const parseDate = d3.timeParse("%Y-%m-%d");
-
-d3.csv("../../data/seattle-weather.csv").then((data) => {
+  const data = await d3.csv("../../data/seattle-weather.csv");
   const table = createDataset(data);
   console.log(table);
 
-  colorScale.domain(d3.extent(table, (d) => d.tempMax));
+  scale.color.domain(d3.extent(table, (d) => d.tempMax));
 
-  const plot = appendChart(svg, margin);
-  appendAxisLabels(svg);
-  appendAxis(plot);
-  appendHeatmap(plot, table);
-  appendLegend(svg, margin);
-});
+  const svg = createSvg(size.svg);
+  const chart = appendChart(svg, size.margin);
+  appendAxisLabels(svg, size);
+  appendAxis(chart, size, scale);
+  appendHeatmap(chart, table, scale);
+  appendLegend(svg, size, scale);
+}
 
-function createSvg(width, height, margin) {
+function createSvg(sizeSvg) {
   return d3
     .select("#graph-d3js")
     .append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom);
+    .attr("width", sizeSvg.width)
+    .attr("height", sizeSvg.height);
 }
 
 function appendChart(svg, margin) {
@@ -40,7 +46,10 @@ function appendChart(svg, margin) {
     .attr("transform", `translate(${margin.left}, ${margin.top})`);
 }
 
-function appendAxisLabels(svg) {
+function appendAxisLabels(svg, size) {
+  const margin = size.margin;
+  const width = size.chart.width;
+  const height = size.chart.height;
   svg
     .append("text")
     .attr("class", "axis-label")
@@ -72,36 +81,47 @@ function appendAxisLabels(svg) {
     .text("Month");
 }
 
-function appendAxis(plot) {
+function appendAxis(plot, size, scale) {
   plot
     .append("g")
-    .attr("transform", `translate(0, ${height})`)
-    .call(d3.axisBottom(xScale).tickSizeOuter(0))
+    .attr("transform", `translate(0, ${size.chart.height})`)
+    .call(d3.axisBottom(scale.x).tickSizeOuter(0))
     .attr("stroke-width", 0);
 
-  plot.append("g").call(d3.axisLeft(yScale).tickSizeOuter(0));
+  const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+
+  plot.append("g").call(
+    d3
+      .axisLeft(scale.y)
+      .tickSizeOuter(0)
+      .tickFormat((d) => months[d])
+  );
 }
 
-function appendHeatmap(plot, table) {
+function appendHeatmap(plot, table, scale) {
   const svgGroups = plot
     .selectAll("rect")
     .data(table)
     .enter()
     .append("rect")
-    .attr("x", (d) => xScale(d.day))
-    .attr("y", (d) => yScale(months[d.month]))
-    .attr("height", yScale.bandwidth())
-    .attr("width", xScale.bandwidth())
-    .attr("stroke", (d) => colorScale(d.tempMax))
-    .attr("fill", (d) => colorScale(d.tempMax));
+    .attr("x", (d) => scale.x(d.day))
+    .attr("y", (d) => scale.y(d.month))
+    .attr("height", scale.y.bandwidth())
+    .attr("width", scale.x.bandwidth())
+    .attr("stroke", (d) => scale.color(d.tempMax))
+    .attr("fill", (d) => scale.color(d.tempMax));
   return svgGroups;
 }
 
-function appendLegend(svg, margin) {
+function appendLegend(svg, size, scale) {
+  const margin = size.margin;
   const legend = svg
     .append("g")
     .attr("class", "legend")
-    .attr("transform", `translate(${margin.left + width + 10}, ${margin.top})`);
+    .attr(
+      "transform",
+      `translate(${margin.left + size.chart.width + 10}, ${margin.top})`
+    );
   legend
     .selectAll(".legend")
     .data(d3.range(5, 37))
@@ -109,7 +129,7 @@ function appendLegend(svg, margin) {
     .append("rect")
     .attr("width", 15)
     .attr("height", 5)
-    .attr("fill", (d) => colorScale(d))
+    .attr("fill", (d) => scale.color(d))
     .attr("transform", (d) => `translate(0, ${5 * (36 - d)})`);
   legend
     .append("text")
@@ -128,6 +148,7 @@ function appendLegend(svg, margin) {
 }
 
 function createDataset(data) {
+  const parseDate = d3.timeParse("%Y-%m-%d");
   data.forEach((d) => {
     d.date = parseDate(d.date);
     d.temp_max = +d.temp_max;
