@@ -6,42 +6,7 @@ const height = 215 - margin.top - margin.bottom;
 
 const parseMonth = d3.timeParse("%Y-%m-%d");
 
-const svg = d3
-  .select("#graph-d3js")
-  .append("svg")
-  .attr("width", width + margin.left + margin.right)
-  .attr("height", height + margin.top + margin.bottom);
-
-svg
-  .append("text")
-  .attr("class", "axis-label")
-  .attr("font-size", 13)
-  .attr("font-weight", "bold")
-  .attr("text-anchor", "middle")
-  .attr("x", margin.left + width / 2)
-  .attr("y", margin.top * 0.5)
-  .text("Daily Max Temperatures (C) in Seattle, WA");
-
-svg
-  .append("text")
-  .attr("class", "axis-label")
-  .attr("font-size", 10)
-  .attr("font-weight", "bold")
-  .attr("text-anchor", "middle")
-  .attr("x", margin.left + width / 2)
-  .attr("y", margin.top + height + 0.75 * margin.bottom)
-  .text("Day");
-
-svg
-  .append("text")
-  .attr("font-size", 10)
-  .attr("font-weight", "bold")
-  .attr("text-anchor", "middle")
-  .attr("transform", "rotate(-90)")
-  .attr("x", -margin.top - height / 2)
-  .attr("y", margin.left / 3)
-  .text("Month");
-
+const svg = createSvg(width, height, margin);
 const xScale = d3.scaleBand().range([0, width]).domain(d3.range(1, 32));
 const yScale = d3.scaleBand().range([0, height]).domain(months);
 const colorScale = d3.scaleSequential(d3.interpolateYlGnBu);
@@ -49,20 +14,65 @@ const colorScale = d3.scaleSequential(d3.interpolateYlGnBu);
 const parseDate = d3.timeParse("%Y-%m-%d");
 
 d3.csv("../../data/seattle-weather.csv").then((data) => {
-  data.forEach((d) => {
-    d.date = parseDate(d.date);
-    d.temp_max = +d.temp_max;
-  });
-
   const table = createDataset(data);
   console.log(table);
 
   colorScale.domain(d3.extent(table, (d) => d.tempMax));
 
-  const plot = svg
+  const plot = appendChart(svg, margin);
+  appendAxisLabels(svg);
+  appendAxis(plot);
+  appendHeatmap(plot, table);
+  appendLegend(svg, margin);
+});
+
+function createSvg(width, height, margin) {
+  return d3
+    .select("#graph-d3js")
+    .append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom);
+}
+
+function appendChart(svg, margin) {
+  return svg
     .append("g")
     .attr("transform", `translate(${margin.left}, ${margin.top})`);
+}
 
+function appendAxisLabels(svg) {
+  svg
+    .append("text")
+    .attr("class", "axis-label")
+    .attr("font-size", 13)
+    .attr("font-weight", "bold")
+    .attr("text-anchor", "middle")
+    .attr("x", margin.left + width / 2)
+    .attr("y", margin.top * 0.5)
+    .text("Daily Max Temperatures (C) in Seattle, WA");
+
+  svg
+    .append("text")
+    .attr("class", "axis-label")
+    .attr("font-size", 10)
+    .attr("font-weight", "bold")
+    .attr("text-anchor", "middle")
+    .attr("x", margin.left + width / 2)
+    .attr("y", margin.top + height + 0.75 * margin.bottom)
+    .text("Day");
+
+  svg
+    .append("text")
+    .attr("font-size", 10)
+    .attr("font-weight", "bold")
+    .attr("text-anchor", "middle")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -margin.top - height / 2)
+    .attr("y", margin.left / 3)
+    .text("Month");
+}
+
+function appendAxis(plot) {
   plot
     .append("g")
     .attr("transform", `translate(0, ${height})`)
@@ -70,7 +80,9 @@ d3.csv("../../data/seattle-weather.csv").then((data) => {
     .attr("stroke-width", 0);
 
   plot.append("g").call(d3.axisLeft(yScale).tickSizeOuter(0));
+}
 
+function appendHeatmap(plot, table) {
   const svgGroups = plot
     .selectAll("rect")
     .data(table)
@@ -82,7 +94,10 @@ d3.csv("../../data/seattle-weather.csv").then((data) => {
     .attr("width", xScale.bandwidth())
     .attr("stroke", (d) => colorScale(d.tempMax))
     .attr("fill", (d) => colorScale(d.tempMax));
+  return svgGroups;
+}
 
+function appendLegend(svg, margin) {
   const legend = svg
     .append("g")
     .attr("class", "legend")
@@ -110,9 +125,14 @@ d3.csv("../../data/seattle-weather.csv").then((data) => {
     .attr("x", 20)
     .attr("y", 5 * (36 - 5))
     .text("5");
-});
+}
 
 function createDataset(data) {
+  data.forEach((d) => {
+    d.date = parseDate(d.date);
+    d.temp_max = +d.temp_max;
+  });
+
   const table = d3.rollups(
     data,
     (g) => d3.max(g, (d) => d.temp_max),
