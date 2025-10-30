@@ -1,174 +1,228 @@
-main();
+render();
 
-async function main() {
-  const size = {
-    svg: {
-      width: 502,
-      height: 215,
+async function render() {
+  const layout = createLayout();
+  const scale = createScale(layout);
+
+  const chart = appendChartRoot(layout);
+  const plot = appendPlotGroup(chart, layout);
+
+  const labels = appendAxisLabels(chart, layout);
+  const axes = appendAxes(plot, layout, scale);
+
+  const records = await loadWeatherRecords();
+  scale.color.domain(d3.extent(records, (d) => d.tempMax));
+
+  const cells = appendCells(plot, records, scale);
+  const legend = appendLegend({ chart, layout, scale });
+
+  return {
+    layout,
+    scale,
+    references: {
+      containers: { chart, plot },
+      labels,
+      axes,
+      cells,
+      legend,
     },
-    margin: { top: 20, right: 50, bottom: 40, left: 45 },
-    chart: {},
   };
-  size.chart.width = size.svg.width - size.margin.left - size.margin.right;
-  size.chart.height = size.svg.height - size.margin.top - size.margin.bottom;
-
-  const scale = {
-    x: d3.scaleBand().range([0, size.chart.width]).domain(d3.range(1, 32)),
-    y: d3.scaleBand().range([0, size.chart.height]).domain(d3.range(0, 12)),
-    color: d3.scaleSequential(d3.interpolateYlGnBu),
-  };
-
-  const data = await d3.csv("../../data/seattle-weather.csv");
-  const table = createDataset(data);
-  console.log(table);
-
-  scale.color.domain(d3.extent(table, (d) => d.tempMax));
-
-  const svg = createSvg(size.svg);
-  const chart = appendChart(svg, size.margin);
-  appendAxisLabels(svg, size);
-  appendAxis(chart, size, scale);
-  appendHeatmap(chart, table, scale);
-  appendLegend(svg, size, scale);
 }
 
-function createSvg(sizeSvg) {
+function createLayout() {
+  const layout = {
+    root: { width: 502, height: 215 },
+    margin: { top: 20, right: 50, bottom: 40, left: 45 },
+  };
+  layout.chart = {
+    width: layout.root.width - layout.margin.left - layout.margin.right,
+    height: layout.root.height - layout.margin.top - layout.margin.bottom,
+  };
+  return layout;
+}
+
+function createScale(layout) {
+  return {
+    x: d3.scaleBand().domain(d3.range(1, 32)).range([0, layout.chart.width]),
+    y: d3.scaleBand().domain(d3.range(0, 12)).range([0, layout.chart.height]),
+    color: d3.scaleSequential(d3.interpolateYlGnBu),
+  };
+}
+
+function appendChartRoot(layout) {
   return d3
     .select("#graph-d3js")
     .append("svg")
-    .attr("width", sizeSvg.width)
-    .attr("height", sizeSvg.height);
+    .attr("width", layout.root.width)
+    .attr("height", layout.root.height);
 }
 
-function appendChart(svg, margin) {
-  return svg
+function appendPlotGroup(chart, layout) {
+  return chart
     .append("g")
-    .attr("transform", `translate(${margin.left}, ${margin.top})`);
+    .attr(
+      "transform",
+      `translate(${layout.margin.left}, ${layout.margin.top})`,
+    );
 }
 
-function appendAxisLabels(svg, size) {
-  const margin = size.margin;
-  const width = size.chart.width;
-  const height = size.chart.height;
-  svg
+function appendAxisLabels(chart, layout) {
+  return {
+    title: appendChartTitle(chart, layout),
+    x: appendXAxisLabel(chart, layout),
+    y: appendYAxisLabel(chart, layout),
+  };
+}
+
+function appendChartTitle(chart, layout) {
+  return chart
     .append("text")
     .attr("class", "axis-label")
     .attr("font-size", 13)
     .attr("font-weight", "bold")
     .attr("text-anchor", "middle")
-    .attr("x", margin.left + width / 2)
-    .attr("y", margin.top * 0.5)
+    .attr("x", layout.margin.left + layout.chart.width / 2)
+    .attr("y", layout.margin.top * 0.5)
     .text("Daily Max Temperatures (C) in Seattle, WA");
+}
 
-  svg
+function appendXAxisLabel(chart, layout) {
+  return chart
     .append("text")
     .attr("class", "axis-label")
     .attr("font-size", 10)
     .attr("font-weight", "bold")
     .attr("text-anchor", "middle")
-    .attr("x", margin.left + width / 2)
-    .attr("y", margin.top + height + 0.75 * margin.bottom)
+    .attr("x", layout.margin.left + layout.chart.width / 2)
+    .attr(
+      "y",
+      layout.margin.top + layout.chart.height + 0.75 * layout.margin.bottom,
+    )
     .text("Day");
+}
 
-  svg
+function appendYAxisLabel(chart, layout) {
+  return chart
     .append("text")
     .attr("font-size", 10)
     .attr("font-weight", "bold")
     .attr("text-anchor", "middle")
     .attr("transform", "rotate(-90)")
-    .attr("x", -margin.top - height / 2)
-    .attr("y", margin.left / 3)
+    .attr("x", -layout.margin.top - layout.chart.height / 2)
+    .attr("y", layout.margin.left / 3)
     .text("Month");
 }
 
-function appendAxis(plot, size, scale) {
-  plot
+function appendAxes(plot, layout, scale) {
+  return {
+    x: appendXAxis(plot, layout, scale),
+    y: appendYAxis(plot, scale),
+  };
+}
+
+function appendXAxis(plot, layout, scale) {
+  return plot
     .append("g")
-    .attr("transform", `translate(0, ${size.chart.height})`)
+    .attr("transform", `translate(0, ${layout.chart.height})`)
     .call(d3.axisBottom(scale.x).tickSizeOuter(0))
     .attr("stroke-width", 0);
+}
 
+function appendYAxis(plot, scale) {
   const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
-
-  plot.append("g").call(
+  return plot.append("g").call(
     d3
       .axisLeft(scale.y)
       .tickSizeOuter(0)
-      .tickFormat((d) => months[d])
+      .tickFormat((d) => months[d]),
   );
 }
 
-function appendHeatmap(plot, table, scale) {
-  const svgGroups = plot
-    .selectAll("rect")
-    .data(table)
+function appendCells(plot, records, scale) {
+  return plot
+    .selectAll(".cell")
+    .data(records)
     .enter()
     .append("rect")
+    .attr("class", "cell")
     .attr("x", (d) => scale.x(d.day))
     .attr("y", (d) => scale.y(d.month))
-    .attr("height", scale.y.bandwidth())
     .attr("width", scale.x.bandwidth())
+    .attr("height", scale.y.bandwidth())
     .attr("stroke", (d) => scale.color(d.tempMax))
     .attr("fill", (d) => scale.color(d.tempMax));
-  return svgGroups;
 }
 
-function appendLegend(svg, size, scale) {
-  const margin = size.margin;
-  const legend = svg
+function appendLegend({ chart, layout, scale }) {
+  const legendWidth = 15;
+  const swatchHeight = 5;
+  const [min, max] = scale.color.domain();
+  const steps = d3.range(Math.floor(min), Math.ceil(max) + 1);
+  const formatTemp = d3.format(".0f");
+  const legend = chart
     .append("g")
     .attr("class", "legend")
     .attr(
       "transform",
-      `translate(${margin.left + size.chart.width + 10}, ${margin.top})`
+      `translate(${layout.margin.left + layout.chart.width + 10}, ${
+        layout.margin.top
+      })`,
     );
+
   legend
-    .selectAll(".legend")
-    .data(d3.range(5, 37))
+    .selectAll("rect")
+    .data(steps)
     .enter()
     .append("rect")
-    .attr("width", 15)
-    .attr("height", 5)
-    .attr("fill", (d) => scale.color(d))
-    .attr("transform", (d) => `translate(0, ${5 * (36 - d)})`);
+    .attr("width", legendWidth)
+    .attr("height", swatchHeight)
+    .attr("fill", (value) => scale.color(value))
+    .attr("transform", (_, index) => {
+      const offset = swatchHeight * (steps.length - 1 - index);
+      return `translate(0, ${offset})`;
+    });
+
   legend
     .append("text")
     .attr("font-size", 10)
     .attr("text-anchor", "left")
-    .attr("x", 20)
+    .attr("x", legendWidth + 5)
     .attr("y", 10)
-    .text("36");
+    .text(formatTemp(max));
+
   legend
     .append("text")
     .attr("font-size", 10)
     .attr("text-anchor", "left")
-    .attr("x", 20)
-    .attr("y", 5 * (36 - 5))
-    .text("5");
+    .attr("x", legendWidth + 5)
+    .attr("y", swatchHeight * (steps.length - 1) + 5)
+    .text(formatTemp(min));
+
+  return legend;
 }
 
-function createDataset(data) {
+async function loadWeatherRecords() {
   const parseDate = d3.timeParse("%Y-%m-%d");
-  data.forEach((d) => {
-    d.date = parseDate(d.date);
-    d.temp_max = +d.temp_max;
+  const raw = await d3.csv("../../data/seattle-weather.csv", (row) => {
+    const date = parseDate(row.date);
+    return {
+      date,
+      tempMax: +row.temp_max,
+    };
   });
 
   const table = d3.rollups(
-    data,
-    (g) => d3.max(g, (d) => d.temp_max),
+    raw,
+    (group) => d3.max(group, (d) => d.tempMax),
     (d) => d.date.getDate(),
-    (d) => d.date.getMonth()
+    (d) => d.date.getMonth(),
   );
-  const flattened = [];
-  for (const row of table) {
-    const day = row[0];
-    const m = row[1];
-    for (const col of m) {
-      const month = col[0];
-      const tempMax = col[1];
-      flattened.push({ month, day, tempMax });
+
+  const records = [];
+  for (const [day, monthly] of table) {
+    for (const [month, tempMax] of monthly) {
+      records.push({ day, month, tempMax });
     }
   }
-  return flattened;
+  return records;
 }

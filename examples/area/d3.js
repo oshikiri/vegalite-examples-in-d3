@@ -1,86 +1,153 @@
-const svgWidth = 372;
-const svgHeight = 242;
+render();
 
-const margin = { top: 10, right: 10, bottom: 40, left: 60 };
-const width = svgWidth - margin.left - margin.right;
-const height = svgHeight - margin.top - margin.bottom;
+async function render() {
+  const layout = createLayout();
+  const scale = createScale(layout);
 
-const parseYearMonth = d3.timeParse("%Y-%m");
+  const aggregated = await loadUnemploymentCounts();
+  configureScales(scale, aggregated);
 
-const svg = d3
-  .select("#graph-d3js")
-  .append("svg")
-  .attr("width", svgWidth)
-  .attr("height", svgHeight);
+  const chart = appendChartRoot(layout);
+  const plot = appendPlotGroup(chart, layout);
 
-const chart = svg
-  .append("g")
-  .attr("transform", `translate(${margin.left}, ${margin.top})`);
+  const labels = appendAxisLabels(chart, layout);
+  const axes = appendAxes(plot, layout, scale);
+  const area = appendArea(plot, aggregated, scale);
 
-appendAxisLabel(svg)
-  .attr("x", margin.left + width / 2)
-  .attr("y", margin.top + height + 0.8 * margin.bottom)
-  .text("date (year-month)");
+  return {
+    layout,
+    scale,
+    references: {
+      containers: { chart, plot },
+      labels,
+      axes,
+      marks: { area },
+    },
+  };
+}
 
-appendAxisLabel(svg)
-  .attr("transform", "rotate(-90)")
-  .attr("x", -margin.top - height / 2)
-  .attr("y", 0.3 * margin.left)
-  .text("count");
+function createLayout() {
+  const layout = {
+    root: { width: 372, height: 242 },
+    margin: { top: 10, right: 10, bottom: 40, left: 60 },
+  };
+  layout.chart = {
+    width: layout.root.width - layout.margin.left - layout.margin.right,
+    height: layout.root.height - layout.margin.top - layout.margin.bottom,
+  };
+  return layout;
+}
 
-const xScale = d3.scaleTime().range([0, width]);
-const yScale = d3.scaleLinear().range([height, 0]);
+function createScale(layout) {
+  return {
+    x: d3.scaleTime().range([0, layout.chart.width]),
+    y: d3.scaleLinear().range([layout.chart.height, 0]),
+  };
+}
 
-d3.json("../../data/unemployment-across-industries.json").then((data) => {
-  const aggregated = d3
+async function loadUnemploymentCounts() {
+  const parseYearMonth = d3.timeParse("%Y-%m");
+  const data = await d3.json("../../data/unemployment-across-industries.json");
+  return d3
     .rollups(
       data,
       (group) => d3.sum(group, (d) => d.count),
-      (d) => parseYearMonth(`${d.year}-${d.month}`)
+      (d) => parseYearMonth(`${d.year}-${d.month}`),
     )
-    .map(([k, v]) => ({ date: k, count: v }));
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => a.date - b.date);
+}
 
-  xScale.domain(d3.extent(aggregated.map((d) => d.date)));
-  yScale.domain([0, 16000]);
+function configureScales(scale, data) {
+  scale.x.domain(d3.extent(data, (d) => d.date));
+  scale.y.domain([0, d3.max(data, (d) => d.count) ?? 0]);
+}
 
-  appendYAxis(chart);
-  appendXAxis(chart);
-  appendArea(chart, aggregated);
-});
+function appendChartRoot(layout) {
+  return d3
+    .select("#graph-d3js")
+    .append("svg")
+    .attr("width", layout.root.width)
+    .attr("height", layout.root.height);
+}
 
-function appendAxisLabel(svg) {
-  return svg
+function appendPlotGroup(chart, layout) {
+  return chart
+    .append("g")
+    .attr(
+      "transform",
+      `translate(${layout.margin.left}, ${layout.margin.top})`,
+    );
+}
+
+function appendAxisLabels(chart, layout) {
+  return {
+    x: appendXAxisLabel(chart, layout),
+    y: appendYAxisLabel(chart, layout),
+  };
+}
+
+function appendXAxisLabel(chart, layout) {
+  return chart
     .append("text")
     .attr("class", "axis-label")
     .attr("font-size", 10)
     .attr("font-weight", "bold")
-    .attr("text-anchor", "middle");
+    .attr("text-anchor", "middle")
+    .attr("x", layout.margin.left + layout.chart.width / 2)
+    .attr(
+      "y",
+      layout.margin.top + layout.chart.height + 0.8 * layout.margin.bottom,
+    )
+    .text("date (year-month)");
 }
 
-function appendYAxis(chart) {
-  const axis = chart.append("g").attr("transform", `translate(0, ${height})`);
-  axis
-    .append("g")
-    .call(d3.axisBottom(xScale).ticks(10).tickSize(-height).tickFormat(""));
-  axis.append("g").call(d3.axisBottom(xScale).ticks(5));
-}
-
-function appendXAxis(chart) {
+function appendYAxisLabel(chart, layout) {
   return chart
+    .append("text")
+    .attr("font-size", 10)
+    .attr("font-weight", "bold")
+    .attr("text-anchor", "middle")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -layout.margin.top - layout.chart.height / 2)
+    .attr("y", layout.margin.left * 0.3)
+    .text("count");
+}
+
+function appendAxes(plot, layout, scale) {
+  const axes = {};
+
+  axes.x = plot
+    .append("g")
+    .attr("transform", `translate(0, ${layout.chart.height})`)
+    .call(d3.axisBottom(scale.x).ticks(10));
+
+  plot
     .append("g")
     .attr("class", "grid")
-    .call(d3.axisLeft(yScale).ticks(5).tickSize(-width));
+    .call(
+      d3
+        .axisLeft(scale.y)
+        .ticks(5)
+        .tickSize(-layout.chart.width)
+        .tickFormat(""),
+    );
+
+  axes.y = plot.append("g").call(d3.axisLeft(scale.y).ticks(5));
+
+  return axes;
 }
 
-function appendArea(chart, aggregated) {
-  const valueline = d3
+function appendArea(plot, data, scale) {
+  const generator = d3
     .area()
-    .x((d) => xScale(d.date))
-    .y0(height)
-    .y1((d) => yScale(d.count));
-  return chart
+    .x((d) => scale.x(d.date))
+    .y0(scale.y(0))
+    .y1((d) => scale.y(d.count));
+
+  return plot
     .append("path")
-    .datum(aggregated)
-    .attr("class", "line")
-    .attr("d", valueline);
+    .datum(data)
+    .attr("class", "area")
+    .attr("d", generator);
 }

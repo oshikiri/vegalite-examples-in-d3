@@ -1,183 +1,266 @@
-const colors = "steelblue orange red lightblue green".split(" ");
-const symbols = "AAPL AMZN GOOG IBM MSFT".split(" ");
+render();
 
-const margin = { top: 20, right: 70, bottom: 40, left: 45 };
-const width = 314 - margin.left - margin.right;
-const height = 245 - margin.top - margin.bottom;
+async function render() {
+  const layout = createLayout();
+  const scale = createScale(layout);
 
-const parseMonth = d3.timeParse("%Y-%m-%d");
+  const series = await loadStockSeries();
+  configureScales(scale, series);
 
-const svg = d3
-  .select("#graph-d3js")
-  .append("svg")
-  .attr("width", width + margin.left + margin.right)
-  .attr("height", height + margin.top + margin.bottom);
+  const chart = appendChartRoot(layout);
+  const plot = appendPlotGroup(chart, layout);
 
-appendLabelX(svg, width, height, margin);
-appendLabelY(svg, height, margin);
+  const labels = appendAxisLabels(chart, layout);
+  const axes = appendAxes(plot, layout, scale);
+  const marks = appendSeries(plot, series, scale);
+  const legend = appendLegend({ chart, layout, scale });
 
-const xScale = d3.scaleLinear().range([0, width]);
-const yScale = d3.scaleLinear().range([height, 0]);
-const symbolScale = d3.scaleOrdinal().range(colors).domain(symbols);
-
-const parseDate = d3.timeParse("%b %d %Y");
-
-const chart = svg
-  .append("g")
-  .attr("transform", `translate(${margin.left}, ${margin.top})`);
-
-xScale.domain([2000, 2010]);
-yScale.domain([0, 550]);
-
-appendAxisX(chart, xScale, height);
-appendAxisY(chart, yScale, width);
-
-const line = d3
-  .line()
-  .x(([y, _p]) => xScale(y))
-  .y(([_y, p]) => yScale(p));
-
-d3.csv("../../data/stocks.csv").then((data) => {
-  const table = preprocess(data);
-  console.log(table);
-
-  table.forEach(([symbol, data]) => {
-    console.log(data);
-    appendLine(chart, data, xScale, yScale, symbolScale(symbol), line);
-  });
-
-  appendLegend(svg, margin, width, height);
-});
-
-function preprocess(data) {
-  data.forEach((d) => {
-    d.date = parseDate(d.date);
-    d.year = d.date.getFullYear();
-    d.price = +d.price;
-  });
-  console.log(data);
-
-  const table = d3.rollups(
-    data,
-    (g) => d3.mean(g, (d) => d.price),
-    (d) => d.symbol,
-    (d) => d.year
-  );
-
-  return table;
+  return {
+    layout,
+    scale,
+    references: {
+      containers: { chart, plot },
+      labels,
+      axes,
+      marks,
+      legend,
+    },
+  };
 }
 
-function appendLabelX(parent, width, height, margin) {
-  return parent
+function createLayout() {
+  const layout = {
+    root: { width: 314, height: 245 },
+    margin: { top: 20, right: 70, bottom: 40, left: 45 },
+  };
+  layout.chart = {
+    width: layout.root.width - layout.margin.left - layout.margin.right,
+    height: layout.root.height - layout.margin.top - layout.margin.bottom,
+  };
+  return layout;
+}
+
+function createScale(layout) {
+  const colorSequence = ["steelblue", "orange", "red", "lightblue", "green"];
+  return {
+    x: d3.scaleLinear().range([0, layout.chart.width]),
+    y: d3.scaleLinear().range([layout.chart.height, 0]),
+    color: d3.scaleOrdinal().range(colorSequence),
+  };
+}
+
+async function loadStockSeries() {
+  const parseDate = d3.timeParse("%b %d %Y");
+  const rows = await d3.csv("../../data/stocks.csv", (row) => {
+    const date = parseDate(row.date);
+    return {
+      symbol: row.symbol,
+      year: date.getFullYear(),
+      price: +row.price,
+    };
+  });
+
+  const table = d3.rollups(
+    rows,
+    (group) => d3.mean(group, (d) => d.price),
+    (d) => d.symbol,
+    (d) => d.year,
+  );
+
+  return table.map(([symbol, entries]) => ({
+    symbol,
+    values: entries
+      .map(([year, price]) => ({ year, price }))
+      .sort((a, b) => a.year - b.year),
+  }));
+}
+
+function configureScales(scale, series) {
+  const years = series.flatMap(({ values }) => values.map((d) => d.year));
+  const prices = series.flatMap(({ values }) => values.map((d) => d.price));
+
+  scale.x.domain(d3.extent(years));
+  scale.y.domain([0, d3.max(prices) ?? 0]);
+  scale.color.domain(series.map((d) => d.symbol));
+}
+
+function appendChartRoot(layout) {
+  return d3
+    .select("#graph-d3js")
+    .append("svg")
+    .attr("width", layout.root.width)
+    .attr("height", layout.root.height);
+}
+
+function appendPlotGroup(chart, layout) {
+  return chart
+    .append("g")
+    .attr(
+      "transform",
+      `translate(${layout.margin.left}, ${layout.margin.top})`,
+    );
+}
+
+function appendAxisLabels(chart, layout) {
+  return {
+    x: appendXAxisLabel(chart, layout),
+    y: appendYAxisLabel(chart, layout),
+  };
+}
+
+function appendXAxisLabel(chart, layout) {
+  return chart
     .append("text")
     .attr("class", "axis-label")
     .attr("font-size", 10)
     .attr("font-weight", "bold")
     .attr("text-anchor", "middle")
-    .attr("x", margin.left + width / 2)
-    .attr("y", margin.top + height + 0.75 * margin.bottom)
+    .attr("x", layout.margin.left + layout.chart.width / 2)
+    .attr(
+      "y",
+      layout.margin.top + layout.chart.height + 0.75 * layout.margin.bottom,
+    )
     .text("date (year)");
 }
 
-function appendLabelY(parent, height, margin) {
-  return parent
+function appendYAxisLabel(chart, layout) {
+  return chart
     .append("text")
     .attr("font-size", 10)
     .attr("font-weight", "bold")
     .attr("text-anchor", "middle")
     .attr("transform", "rotate(-90)")
-    .attr("x", -margin.top - height / 2)
-    .attr("y", margin.left / 3)
+    .attr("x", -layout.margin.top - layout.chart.height / 2)
+    .attr("y", layout.margin.left / 3)
     .text("Mean of price");
 }
 
-function appendAxisX(parent, xScale, height) {
-  const axisRoot = parent.append("g");
-  axisRoot
-    .append("g")
-    .attr("transform", `translate(0, ${height})`)
-    .call(d3.axisBottom(xScale).ticks(5).tickFormat(d3.format("d")));
-  axisRoot
-    .append("g")
-    .attr("class", "grid")
-    .attr("transform", `translate(0, ${height})`)
-    .attr("opacity", "0.7")
-    .attr("stroke-width", 0.2)
-    .call(d3.axisBottom(xScale).ticks(5).tickSize(-height).tickFormat(""));
-  return axisRoot;
-}
+function appendAxes(plot, layout, scale) {
+  const axes = {};
 
-function appendAxisY(parent, yScale, width) {
-  const axisRoot = parent.append("g");
-  axisRoot.append("g").call(d3.axisLeft(yScale).ticks(5));
-  axisRoot
+  axes.x = plot
+    .append("g")
+    .attr("class", "x-axis")
+    .attr("transform", `translate(0, ${layout.chart.height})`)
+    .call(
+      d3
+        .axisBottom(scale.x)
+        .ticks(5)
+        .tickFormat(d3.format("d"))
+        .tickSizeOuter(0),
+    );
+
+  plot
     .append("g")
     .attr("class", "grid")
-    .attr("transform", `translate(${width}, 0)`)
-    .attr("opacity", "0.7")
+    .attr("opacity", 0.7)
     .attr("stroke-width", 0.2)
-    .call(d3.axisLeft(yScale).ticks(5).tickSize(width).tickFormat(""));
-  return axisRoot;
+    .attr("transform", `translate(0, ${layout.chart.height})`)
+    .call(
+      d3
+        .axisBottom(scale.x)
+        .ticks(5)
+        .tickSize(-layout.chart.height)
+        .tickFormat(""),
+    );
+
+  axes.y = plot
+    .append("g")
+    .attr("class", "y-axis")
+    .call(d3.axisLeft(scale.y).ticks(5));
+
+  plot
+    .append("g")
+    .attr("class", "grid")
+    .attr("opacity", 0.7)
+    .attr("stroke-width", 0.2)
+    .attr("transform", `translate(${layout.chart.width}, 0)`)
+    .call(
+      d3.axisLeft(scale.y).ticks(5).tickSize(layout.chart.width).tickFormat(""),
+    );
+
+  return axes;
 }
 
-function appendLine(parent, data, xScale, yScale, color, line) {
-  const lineElement = parent.append("g");
+function appendSeries(plot, series, scale) {
+  const generator = d3
+    .line()
+    .x((d) => scale.x(d.year))
+    .y((d) => scale.y(d.price));
 
-  lineElement
-    .selectAll("circle")
-    .data(data)
+  const groups = plot
+    .append("g")
+    .attr("class", "series")
+    .selectAll(".series-group")
+    .data(series, (d) => d.symbol)
     .enter()
-    .append("circle")
-    .attr("fill", color)
-    .attr("cx", ([year, _price]) => xScale(year))
-    .attr("cy", ([_year, price]) => yScale(price))
-    .attr("r", (_d) => 3);
-  lineElement
+    .append("g")
+    .attr("class", "series-group");
+
+  groups
     .append("path")
     .attr("class", "line")
-    .attr("d", line(data))
-    .style("fill", "none")
-    .style("stroke", color)
-    .style("stroke-width", 2);
+    .attr("d", (d) => generator(d.values))
+    .attr("fill", "none")
+    .attr("stroke-width", 2)
+    .attr("stroke", (d) => scale.color(d.symbol));
 
-  return lineElement;
+  groups
+    .selectAll("circle")
+    .data((d) => d.values.map((value) => ({ ...value, symbol: d.symbol })))
+    .enter()
+    .append("circle")
+    .attr("class", "point")
+    .attr("r", 3)
+    .attr("fill", (d) => scale.color(d.symbol))
+    .attr("cx", (d) => scale.x(d.year))
+    .attr("cy", (d) => scale.y(d.price));
+
+  return groups;
 }
 
-function appendLegend(svg, margin, width, height) {
-  const squareSize = 10;
-  const paddingSquares = 3;
-  const legendPaddingLeft = 15;
-  const radius = 6;
-  const legend = svg
+function appendLegend({ chart, layout, scale }) {
+  const symbols = scale.color.domain();
+  const legend = chart
     .append("g")
-    .attr("transform", `translate(${margin.left + width}, ${margin.top})`);
+    .attr(
+      "transform",
+      `translate(${layout.margin.left + layout.chart.width}, ${layout.margin.top})`,
+    );
+
+  const radius = 6;
+  const squareSize = 10;
+  const padding = 3;
+  const offsetX = 15;
+
   legend
-    .selectAll("legend-square")
+    .selectAll("legend-dot")
     .data(symbols)
     .enter()
     .append("circle")
-    .attr("cx", legendPaddingLeft + radius * 0.75)
-    .attr("cy", (d, i) => 20 + i * (squareSize + paddingSquares))
+    .attr("cx", offsetX + radius * 0.75)
+    .attr("cy", (_, i) => 20 + i * (squareSize + padding))
     .attr("r", radius)
-    .style("fill", (d, i) => colors[i]);
+    .attr("fill", (symbol) => scale.color(symbol));
+
   legend
-    .selectAll("legend-labels")
+    .selectAll("legend-label")
     .data(symbols)
     .enter()
     .append("text")
     .attr("x", 20 + squareSize * 1.2)
-    .attr("y", (d, i) => 20 + i * (squareSize + paddingSquares))
-    .text((d, i) => symbols[i])
-    .attr("text-anchor", "left")
+    .attr("y", (_, i) => 20 + i * (squareSize + padding))
     .attr("font-size", 9)
-    .style("alignment-baseline", "central");
+    .attr("text-anchor", "start")
+    .style("alignment-baseline", "central")
+    .text((symbol) => symbol);
 
   legend
     .append("text")
     .attr("font-size", 10)
     .attr("font-weight", "bold")
-    .attr("text-anchor", "left")
-    .attr("x", legendPaddingLeft)
+    .attr("text-anchor", "start")
+    .attr("x", offsetX)
     .attr("y", 10)
     .text("symbol");
 

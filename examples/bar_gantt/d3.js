@@ -1,98 +1,156 @@
-const svgWidth = 240;
-const svgHeight = 102;
+render();
 
-const margin = { top: 0, bottom: 35, left: 40, right: 10 };
-const width = svgWidth - margin.left - margin.right;
-const height = svgHeight - margin.top - margin.bottom;
+async function render() {
+  const layout = createLayout();
+  const scale = createScale(layout);
 
-const xScale = d3.scaleLinear().range([0, width]);
-const yScale = d3.scaleBand().range([0, height]).padding(0.1);
+  const data = await loadGanttData();
+  configureScales(scale, data);
 
-const svg = d3
-  .select("#graph-d3js")
-  .append("svg")
-  .attr("width", svgWidth)
-  .attr("height", svgHeight);
-const chart = svg
-  .append("g")
-  .attr("transform", `translate(${margin.left}, ${margin.top})`);
+  const chart = appendChartRoot(layout);
+  const plot = appendPlotGroup(chart, layout);
 
-appendXAxisLabel(chart);
-appendYAxisLabel(chart);
-appendXGridlines(chart);
+  const labels = appendAxisLabels(chart, layout);
+  const grid = appendGridlines(plot, layout, scale);
+  const axes = appendAxes(plot, layout, scale);
+  const marks = appendBars(plot, data, scale);
 
-d3.json("./data.json").then((data) => {
-  xScale.domain([0, d3.max(data, (d) => Math.max(d.start, d.end))]);
-  yScale.domain(data.map((d) => d.task));
+  return {
+    layout,
+    scale,
+    references: {
+      containers: { chart, plot },
+      labels,
+      grid,
+      axes,
+      marks: { bars: marks },
+    },
+  };
+}
 
-  appendAxis(chart);
-  appendBars(chart, data);
-});
+function createLayout() {
+  const layout = {
+    root: { width: 240, height: 102 },
+    margin: { top: 0, right: 10, bottom: 35, left: 40 },
+  };
+  layout.chart = {
+    width: layout.root.width - layout.margin.left - layout.margin.right,
+    height: layout.root.height - layout.margin.top - layout.margin.bottom,
+  };
+  return layout;
+}
 
-function appendXAxisLabel(chart) {
+function createScale(layout) {
+  return {
+    x: d3.scaleLinear().range([0, layout.chart.width]),
+    y: d3.scaleBand().range([0, layout.chart.height]).padding(0.1),
+  };
+}
+
+async function loadGanttData() {
+  return d3.json("./data.json");
+}
+
+function configureScales(scale, data) {
+  const max = d3.max(data, (d) => Math.max(d.start, d.end)) ?? 0;
+  scale.x.domain([0, max]);
+  scale.y.domain(data.map((d) => d.task));
+}
+
+function appendChartRoot(layout) {
+  return d3
+    .select("#graph-d3js")
+    .append("svg")
+    .attr("width", layout.root.width)
+    .attr("height", layout.root.height);
+}
+
+function appendPlotGroup(chart, layout) {
+  return chart
+    .append("g")
+    .attr(
+      "transform",
+      `translate(${layout.margin.left}, ${layout.margin.top})`,
+    );
+}
+
+function appendAxisLabels(chart, layout) {
+  return {
+    x: appendXAxisLabel(chart, layout),
+    y: appendYAxisLabel(chart, layout),
+  };
+}
+
+function appendXAxisLabel(chart, layout) {
   return chart
     .append("text")
-    .attr("class", "x-label")
+    .attr("class", "axis-label")
     .attr("font-size", 10)
     .attr("font-weight", "bold")
     .attr("text-anchor", "middle")
-    .attr("x", width / 2)
-    .attr("y", margin.top + height + 0.9 * margin.bottom)
+    .attr("x", layout.margin.left + layout.chart.width / 2)
+    .attr(
+      "y",
+      layout.margin.top + layout.chart.height + 0.9 * layout.margin.bottom,
+    )
     .text("start, end");
 }
 
-function appendYAxisLabel(chart) {
+function appendYAxisLabel(chart, layout) {
   return chart
     .append("text")
-    .attr("class", "y-label")
+    .attr("class", "axis-label")
     .attr("font-size", 10)
     .attr("font-weight", "bold")
     .attr("text-anchor", "middle")
     .attr("transform", "rotate(-90)")
-    .attr("x", -height / 2)
-    .attr("y", -0.7 * margin.left)
+    .attr("x", -layout.margin.top - layout.chart.height / 2)
+    .attr("y", -layout.margin.left * 0.7)
     .text("task");
 }
 
-function appendXGridlines(chart) {
-  return chart
+function appendGridlines(plot, layout, scale) {
+  return plot
     .append("g")
     .attr("class", "grid")
-    .call(d3.axisTop(xScale).ticks(5).tickSize(-height).tickFormat(""))
+    .call(
+      d3
+        .axisTop(scale.x)
+        .ticks(5)
+        .tickSize(-layout.chart.height)
+        .tickFormat(""),
+    )
     .call((g) =>
       g
         .selectAll(".tick line")
         .attr("stroke", "grey")
-        .attr("stroke-opacity", "0.5")
+        .attr("stroke-opacity", 0.5),
     );
 }
 
-function appendAxis(chart) {
-  const xAxis = chart
-    .append("g")
-    .attr("class", "x-axis")
-    .attr("transform", `translate(0, ${height})`)
-    .call(d3.axisBottom(xScale).ticks(5));
-  const yAxis = chart
-    .append("g")
-    .attr("class", "y-axis")
-    .call(d3.axisLeft(yScale));
-
-  return { xAxis, yAxis };
+function appendAxes(plot, layout, scale) {
+  return {
+    x: plot
+      .append("g")
+      .attr("class", "x-axis")
+      .attr("transform", `translate(0, ${layout.chart.height})`)
+      .call(d3.axisBottom(scale.x).ticks(5)),
+    y: plot.append("g").attr("class", "y-axis").call(d3.axisLeft(scale.y)),
+  };
 }
 
-function appendBars(chart, data) {
-  return chart
+function appendBars(plot, data, scale) {
+  return plot
     .append("g")
     .attr("class", "bars")
     .selectAll(".bar")
     .data(data)
     .enter()
     .append("rect")
-    .attr("fill", "steelblue")
     .attr("class", "bar")
-    .attr("x", (d) => xScale(d.start))
-    .attr("y", (d) => yScale(d.task))
-    .attr("width", (d) => xScale(d.end) - xScale(d.start))
-    .attr("height", yScale.bandwidth());
+    .attr("fill", "steelblue")
+    .attr("x", (d) => scale.x(d.start))
+    .attr("y", (d) => scale.y(d.task))
+    .attr("width", (d) => scale.x(d.end) - scale.x(d.start))
+    .attr("height", scale.y.bandwidth());
 }

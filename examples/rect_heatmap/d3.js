@@ -1,98 +1,183 @@
-const rootWidth = 296;
-const rootHeight = 103;
-const margin = { top: 10, right: 130, bottom: 30, left: 60 };
-const width = rootWidth - margin.left - margin.right;
-const height = rootHeight - margin.top - margin.bottom;
+render();
 
-const parseYearMonth = d3.timeParse("%Y-%m");
+async function render() {
+  const layout = createLayout();
+  const scale = createScale(layout);
 
-const xDomain = [3, 4, 5, 6, 8];
-const yDomain = ["USA", "Japan", "Europe"];
+  const chart = appendChartRoot(layout);
+  const plot = appendPlotGroup(chart, layout);
 
-const xScale = d3.scaleBand().domain(xDomain).range([0, width]);
-const yScale = d3.scaleBand().domain(yDomain).range([height, 0]);
-const colorScale = d3.scaleSequential(d3.interpolateYlGnBu);
+  const labels = appendAxisLabels(chart, layout);
+  const axes = appendAxes(plot, layout, scale);
 
-const chart = d3
-  .select("#graph-d3js")
-  .append("svg")
-  .attr("width", rootWidth)
-  .attr("height", rootHeight);
+  const table = await loadHeatmapTable(scale);
+  const cells = appendCells(plot, table, scale);
+  const legend = appendLegend({ chart, layout, scale });
 
-const svg = chart
-  .append("g")
-  .attr("transform", `translate(${margin.left}, ${margin.top})`);
+  return {
+    layout,
+    scale,
+    references: {
+      containers: { chart, plot },
+      labels,
+      axes,
+      cells,
+      legend,
+    },
+  };
+}
 
-const xTitle = chart
-  .append("text")
-  .attr("class", "axis-label")
-  .attr("font-size", 10)
-  .attr("font-weight", "bold")
-  .attr("text-anchor", "middle")
-  .attr("x", margin.left + width / 2)
-  .attr("y", margin.top + height + 0.9 * margin.bottom)
-  .text("Cylinders");
+function createLayout() {
+  const layout = {
+    root: { width: 296, height: 103 },
+    margin: { top: 10, right: 130, bottom: 30, left: 60 },
+  };
+  layout.chart = {
+    width: layout.root.width - layout.margin.left - layout.margin.right,
+    height: layout.root.height - layout.margin.top - layout.margin.bottom,
+  };
+  return layout;
+}
 
-const yTitle = chart
-  .append("text")
-  .attr("font-size", 10)
-  .attr("font-weight", "bold")
-  .attr("text-anchor", "middle")
-  .attr("transform", "rotate(-90)")
-  .attr("x", -margin.top - height / 2)
-  .attr("y", margin.left / 4)
-  .text("Origin");
+function createScale(layout) {
+  return {
+    x: d3.scaleBand().domain([3, 4, 5, 6, 8]).range([0, layout.chart.width]),
+    y: d3
+      .scaleBand()
+      .domain(["USA", "Japan", "Europe"])
+      .range([layout.chart.height, 0]),
+    color: d3.scaleSequential(d3.interpolateYlGnBu),
+  };
+}
 
-const xTicks = svg
-  .append("g")
-  .attr("class", "grid")
-  .attr("transform", `translate(0, ${height})`)
-  .call(d3.axisBottom(xScale).ticks(5));
+function appendChartRoot(layout) {
+  return d3
+    .select("#graph-d3js")
+    .append("svg")
+    .attr("width", layout.root.width)
+    .attr("height", layout.root.height);
+}
 
-const yTicks = svg
-  .append("g")
-  .attr("class", "grid")
-  .call(d3.axisLeft(yScale).ticks(5));
+function appendPlotGroup(chart, layout) {
+  return chart
+    .append("g")
+    .attr(
+      "transform",
+      `translate(${layout.margin.left}, ${layout.margin.top})`,
+    );
+}
 
-d3.json("../../data/cars.json").then((data) => {
+function appendAxisLabels(chart, layout) {
+  return {
+    x: appendXAxisLabel(chart, layout),
+    y: appendYAxisLabel(chart, layout),
+  };
+}
+
+function appendXAxisLabel(chart, layout) {
+  return chart
+    .append("text")
+    .attr("class", "axis-label")
+    .attr("font-size", 10)
+    .attr("font-weight", "bold")
+    .attr("text-anchor", "middle")
+    .attr("x", layout.margin.left + layout.chart.width / 2)
+    .attr(
+      "y",
+      layout.margin.top + layout.chart.height + 0.9 * layout.margin.bottom,
+    )
+    .text("Cylinders");
+}
+
+function appendYAxisLabel(chart, layout) {
+  return chart
+    .append("text")
+    .attr("font-size", 10)
+    .attr("font-weight", "bold")
+    .attr("text-anchor", "middle")
+    .attr("transform", "rotate(-90)")
+    .attr("x", -layout.margin.top - layout.chart.height / 2)
+    .attr("y", layout.margin.left / 4)
+    .text("Origin");
+}
+
+function appendAxes(plot, layout, scale) {
+  return {
+    x: appendXAxis(plot, layout, scale),
+    y: appendYAxis(plot, scale),
+  };
+}
+
+function appendXAxis(plot, layout, scale) {
+  return plot
+    .append("g")
+    .attr("class", "grid")
+    .attr("transform", `translate(0, ${layout.chart.height})`)
+    .call(d3.axisBottom(scale.x).ticks(5));
+}
+
+function appendYAxis(plot, scale) {
+  return plot
+    .append("g")
+    .attr("class", "grid")
+    .call(d3.axisLeft(scale.y).ticks(5));
+}
+
+async function loadHeatmapTable(scale) {
+  const data = await d3.json("../../data/cars.json");
   const table = d3.rollups(
     data,
     (g) => d3.mean(g, (d) => d.Horsepower),
     (d) => d.Origin,
-    (d) => d.Cylinders
+    (d) => d.Cylinders,
   );
 
   const horsepowers = [].concat(
-    ...table.map((row) => row[1].map((col) => col[1]))
+    ...table.map((row) => row[1].map((col) => col[1])),
   );
+  scale.color.domain(d3.extent(horsepowers));
 
-  colorScale.domain(d3.extent(horsepowers));
+  return table;
+}
 
-  svg
+function appendCells(plot, table, scale) {
+  const rows = plot
     .selectAll(".row")
     .data(table)
     .enter()
     .append("g")
     .attr("class", "row")
-    .attr("transform", ([origin]) => `translate(0, ${yScale(origin)})`)
+    .attr("transform", ([origin]) => `translate(0, ${scale.y(origin)})`);
+
+  rows
     .selectAll(".cell")
     .data(([, d]) => d)
     .enter()
     .append("rect")
     .attr("class", "cell")
-    .attr("x", ([cylinder]) => xScale(cylinder))
-    .attr("width", xScale.bandwidth())
-    .attr("height", yScale.bandwidth())
+    .attr("x", ([cylinder]) => scale.x(cylinder))
+    .attr("width", scale.x.bandwidth())
+    .attr("height", scale.y.bandwidth())
     .attr("opacity", 0.9)
-    .attr("fill", ([, horsepower]) => colorScale(horsepower));
+    .attr("fill", ([, horsepower]) => scale.color(horsepower));
 
+  return rows;
+}
+
+function appendLegend({ chart, layout, scale }) {
   const legendWidth = 15;
   const colorY = (hp) => 0.75 * (hp - 76);
-  const toLegendY = (hp) => margin.top + height - colorY(hp);
+  const toLegendY = (hp) =>
+    layout.margin.top + layout.chart.height - colorY(hp);
   const legend = chart
     .append("g")
     .attr("class", "legend")
-    .attr("transform", `translate(${margin.left + width + 10}, ${margin.top})`);
+    .attr(
+      "transform",
+      `translate(${layout.margin.left + layout.chart.width + 10}, ${
+        layout.margin.top
+      })`,
+    );
 
   legend
     .append("text")
@@ -110,7 +195,7 @@ d3.json("../../data/cars.json").then((data) => {
     .append("rect")
     .attr("width", legendWidth)
     .attr("height", 5)
-    .attr("fill", (hp) => colorScale(hp))
+    .attr("fill", (hp) => scale.color(hp))
     .attr("transform", (hp) => `translate(0, ${toLegendY(hp)})`);
 
   legend
@@ -130,4 +215,4 @@ d3.json("../../data/cars.json").then((data) => {
     .attr("x", legendWidth + 5)
     .attr("y", toLegendY(158))
     .text("158");
-});
+}
